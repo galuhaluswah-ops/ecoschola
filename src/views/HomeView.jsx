@@ -16,7 +16,6 @@ import {
   ShieldCheck,
   Lightbulb,
   Calendar,
-  FastForward,
   Settings,
   Plus,
   Droplets
@@ -57,20 +56,24 @@ export default function HomeView({
     return getClassChampionshipStatus(currentClassData, leaderboard);
   }, [currentClassData, leaderboard]);
 
-  // Auto-Daily Rotation & Day Simulation State
-  const [dayOffset, setDayOffset] = useState(0);
+  // 100% Real-time Daily System Date (Automatic midnight rollover)
+  const [currentDate, setCurrentDate] = useState(() => new Date());
   const [manageModalOpen, setManageModalOpen] = useState(false);
   const [dayPackage, setDayPackage] = useState(null);
 
-  // Compute simulated date and active day index
-  const simulatedDate = useMemo(() => {
-    const d = new Date();
-    d.setDate(d.getDate() + dayOffset);
-    return d;
-  }, [dayOffset]);
+  // Sync real-time day if tab remains active across 00:00 midnight
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const now = new Date();
+      if (now.getDate() !== currentDate.getDate()) {
+        setCurrentDate(now);
+      }
+    }, 30000);
+    return () => clearInterval(timer);
+  }, [currentDate]);
 
-  const activeDayIndex = simulatedDate.getDay();
-  const dateKey = useMemo(() => ecoDataService.getDateKey(simulatedDate), [simulatedDate]);
+  const activeDayIndex = currentDate.getDay();
+  const dateKey = useMemo(() => ecoDataService.getDateKey(currentDate), [currentDate]);
 
   // Load Day Package with completion statuses for current class & dateKey
   const loadDayPackage = useCallback(async () => {
@@ -86,29 +89,6 @@ export default function HomeView({
   const completedCount = useMemo(() => {
     return activeMissions.filter(m => m.completed).length;
   }, [activeMissions]);
-
-  // Days array for day pills
-  const DAYS_LIST = useMemo(() => [
-    { index: 1, label: 'Sen' },
-    { index: 2, label: 'Sel' },
-    { index: 3, label: 'Rab' },
-    { index: 4, label: 'Kam' },
-    { index: 5, label: 'Jum' },
-    { index: 6, label: 'Sab' },
-    { index: 0, label: 'Min' }
-  ], []);
-
-  // Handlers for Day Simulation
-  const handleNextDaySimulation = () => {
-    setDayOffset(prev => prev + 1);
-  };
-
-  const handleSelectDay = (targetDayIndex) => {
-    const todayIndex = new Date().getDay();
-    let diff = targetDayIndex - todayIndex;
-    if (diff < 0) diff += 7;
-    setDayOffset(diff);
-  };
 
   // Memoized current class data from leaderboard
   const classData = useMemo(() => {
@@ -511,55 +491,6 @@ export default function HomeView({
             </div>
           </div>
 
-          {/* Bar Simulasi Demo Penjurian */}
-          <div className="p-2.5 sm:p-3 bg-gradient-to-r from-slate-50 to-[#E0F7FA]/30 border border-slate-200/80 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="text-xs font-bold text-slate-600 flex items-center gap-1">
-                <FastForward className="w-3.5 h-3.5 text-[#00838F]" />
-                Simulasi Demo:
-              </span>
-              <div className="flex items-center gap-1 overflow-x-auto py-0.5">
-                {DAYS_LIST.map((d) => {
-                  const isActive = activeDayIndex === d.index;
-                  return (
-                    <button
-                      key={d.index}
-                      type="button"
-                      onClick={() => handleSelectDay(d.index)}
-                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                        isActive
-                          ? 'bg-[#2E7D32] text-white shadow-xs scale-105'
-                          : 'bg-white hover:bg-slate-100 text-slate-600 border border-slate-200'
-                      }`}
-                    >
-                      {d.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={handleNextDaySimulation}
-                className="px-3 py-1 rounded-xl bg-white hover:bg-[#E8F5E9] text-[#2E7D32] border border-[#A5D6A7] text-xs font-bold transition-all shadow-xs flex items-center gap-1 active:scale-95 cursor-pointer"
-                title="Simulasi loncat ke hari berikutnya"
-              >
-                <span>⏭️ Simulasi Hari Berikutnya</span>
-              </button>
-              {dayOffset !== 0 && (
-                <button
-                  type="button"
-                  onClick={() => setDayOffset(0)}
-                  className="px-2 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-semibold transition-all cursor-pointer"
-                  title="Kembali ke hari ini sesuai tanggal sistem"
-                >
-                  Reset Hari
-                </button>
-              )}
-            </div>
-          </div>
 
           {/* Interactive Mission Checklist */}
           <div className="space-y-2.5 transition-all duration-300">

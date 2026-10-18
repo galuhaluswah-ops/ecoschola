@@ -828,10 +828,11 @@ export const ecoDataService = {
     return loadFromStorage(STORAGE_KEYS.MISSIONS_BANK, dailyMissionsBank);
   },
 
-  async getDayMissionsForClass(dayIndex, className = 'Kelas 8A', dateKey = null) {
+  async getDayMissionsForClass(dayIndex = new Date().getDay(), className = 'Kelas 8A', dateKey = null) {
     await simulateNetwork(20);
+    const resolvedDayIndex = (dayIndex !== null && dayIndex !== undefined) ? dayIndex : new Date().getDay();
     const bank = await this.getMissionsBank();
-    const activeDayPackage = bank[dayIndex] || bank[1];
+    const activeDayPackage = bank[resolvedDayIndex] || bank[1];
     const activeDateKey = dateKey || this.getDateKey();
 
     const allCompletions = loadFromStorage(STORAGE_KEYS.MISSION_COMPLETIONS, {});
@@ -843,7 +844,7 @@ export const ecoDataService = {
     }));
 
     return {
-      dayIndex,
+      dayIndex: resolvedDayIndex,
       dayName: activeDayPackage.dayName,
       theme: activeDayPackage.theme,
       tagline: activeDayPackage.tagline,
@@ -854,10 +855,11 @@ export const ecoDataService = {
     };
   },
 
-  async toggleDayMission(dayIndex, missionId, className = 'Kelas 8A', dateKey = null) {
+  async toggleDayMission(dayIndex = new Date().getDay(), missionId, className = 'Kelas 8A', dateKey = null) {
+    const resolvedDayIndex = (dayIndex !== null && dayIndex !== undefined) ? dayIndex : new Date().getDay();
     const activeDateKey = dateKey || this.getDateKey();
     const bank = await this.getMissionsBank();
-    const activeDayPackage = bank[dayIndex] || bank[1];
+    const activeDayPackage = bank[resolvedDayIndex] || bank[1];
     const targetMission = (activeDayPackage.missions || []).find(m => m.id === missionId);
 
     if (!targetMission) return null;
