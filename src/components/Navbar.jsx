@@ -301,7 +301,8 @@ export default function Navbar({
                   type="button"
                   onClick={() => {
                     setDropdownOpen(false);
-                    if (onOpenLogin) onOpenLogin();
+                    if (onLogout) onLogout();
+                    else if (onOpenLogin) onOpenLogin();
                   }}
                   className="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-slate-50 hover:bg-[#FFF3E0] text-slate-700 hover:text-[#E65100] text-xs font-bold transition-colors cursor-pointer"
                 >

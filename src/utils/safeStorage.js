@@ -107,3 +107,43 @@ export function pruneFifo(list, maxItems = 50) {
   if (!Array.isArray(list)) return [];
   return list.slice(0, maxItems);
 }
+
+/**
+ * Safely get an item from SessionStorage
+ * @param {string} key - SessionStorage key
+ * @param {any} fallback - Default fallback value
+ * @returns {any}
+ */
+export function safeGetSessionStorage(key, fallback = null) {
+  try {
+    if (typeof window === 'undefined' || !window.sessionStorage) return fallback;
+    const raw = sessionStorage.getItem(key);
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw);
+    return parsed !== null && parsed !== undefined ? parsed : fallback;
+  } catch (err) {
+    console.warn(`[safeStorage] Corrupted sessionStorage key "${key}":`, err);
+    return fallback;
+  }
+}
+
+/**
+ * Safely set or remove an item in SessionStorage
+ * @param {string} key - SessionStorage key
+ * @param {any} value - Value to serialize, or null/undefined to remove
+ * @returns {boolean} Success status
+ */
+export function safeSetSessionStorage(key, value) {
+  try {
+    if (typeof window === 'undefined' || !window.sessionStorage) return false;
+    if (value === null || value === undefined) {
+      sessionStorage.removeItem(key);
+      return true;
+    }
+    sessionStorage.setItem(key, JSON.stringify(value));
+    return true;
+  } catch (err) {
+    console.warn(`[safeStorage] Error writing to sessionStorage "${key}":`, err);
+    return false;
+  }
+}

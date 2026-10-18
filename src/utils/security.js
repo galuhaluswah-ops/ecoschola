@@ -95,31 +95,24 @@ export function validateNumericInput(val, { min = 0.1, max = 500, integerOnly = 
 }
 
 /**
- * Fallback Guest Session for unauthenticated or corrupted states
+ * Fallback Guest / Unauthenticated Session
  */
-export const DEFAULT_SAFE_SESSION = {
-  isLoggedIn: true,
-  token: 'token_siswa_8a',
-  role: 'siswa',
-  className: 'Kelas 8A',
-  userName: 'Kader Kelas 8A',
-  loginAt: new Date().toISOString()
-};
+export const DEFAULT_SAFE_SESSION = null;
 
 /**
  * Verify Session Integrity against official authorized roles and classes
  * @param {any} session - Session object from storage
- * @returns {{ isValid: boolean, session: object }}
+ * @returns {{ isValid: boolean, session: object|null }}
  */
 export function validateSessionIntegrity(session) {
-  if (!session || typeof session !== 'object') {
-    return { isValid: false, session: { ...DEFAULT_SAFE_SESSION } };
+  if (!session || typeof session !== 'object' || !session.isLoggedIn) {
+    return { isValid: false, session: null };
   }
 
   // 1. Validate Role
   if (!VALID_ROLES.includes(session.role)) {
     console.warn('[SessionIntegrity] Invalid role detected in session:', session.role);
-    return { isValid: false, session: { ...DEFAULT_SAFE_SESSION } };
+    return { isValid: false, session: null };
   }
 
   // 2. Validate Siswa Role
@@ -128,11 +121,7 @@ export function validateSessionIntegrity(session) {
       console.warn('[SessionIntegrity] Invalid class detected in student session:', session.className);
       return { 
         isValid: false, 
-        session: { 
-          ...DEFAULT_SAFE_SESSION,
-          className: 'Kelas 8A',
-          userName: 'Kader Kelas 8A'
-        } 
+        session: null
       };
     }
   }

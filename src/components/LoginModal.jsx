@@ -19,7 +19,8 @@ export default function LoginModal({
   isOpen, 
   onClose, 
   currentClass = 'Kelas 8A', 
-  onLoginSuccess 
+  onLoginSuccess,
+  isGate = false
 }) {
   const [activeRole, setActiveRole] = useState('siswa'); // 'siswa' | 'guru'
   const [selectedClass, setSelectedClass] = useState(currentClass || 'Kelas 8A');
@@ -38,9 +39,9 @@ export default function LoginModal({
     badge: cls === 'Kelas 8A' ? 'Juara 1 🥇' : cls === 'Kelas 9B' ? 'Juara 2 🥈' : cls === 'Kelas 7A' ? 'Juara 3 🥉' : null
   }));
 
-  // Lock body scroll when modal is open
+  // Lock body scroll when modal is open as overlay (not in gate mode)
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !isGate) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = 'unset';
@@ -48,9 +49,9 @@ export default function LoginModal({
     return () => {
       document.body.style.overflow = 'unset';
     };
-  }, [isOpen]);
+  }, [isOpen, isGate]);
 
-  if (!isOpen) return null;
+  if (!isGate && !isOpen) return null;
 
   const handleLoginSubmit = (e) => {
     e.preventDefault();
@@ -67,7 +68,7 @@ export default function LoginModal({
         userName: `Kader ${selectedClass}`,
         pin: pinInput
       });
-      onClose();
+      if (!isGate && onClose) onClose();
     } else {
       // Guru / Pembina / Superadmin Validation
       const cleanUsername = (guruId || '').trim().toLowerCase();
@@ -99,7 +100,7 @@ export default function LoginModal({
         username: matched.username,
         isSuperadmin: matched.role === 'superadmin'
       });
-      onClose();
+      if (!isGate && onClose) onClose();
     }
   };
 
@@ -115,26 +116,29 @@ export default function LoginModal({
     }
   };
 
-  return createPortal(
-    /* Full-Screen Blur & Dense Gradient Overlay to completely veil the background dashboard */
-    <div className="fixed inset-0 z-[100] w-screen h-screen h-[100dvh] overflow-y-auto flex items-center justify-center p-4 backdrop-blur-2xl bg-gradient-to-br from-[#E0F7FA]/95 via-[#E8F5E9]/95 to-[#B2DFDB]/95 animate-in fade-in zoom-in-95 duration-200">
-      
+  const modalContent = (
+    <div className={isGate 
+      ? "min-h-screen min-h-[100dvh] w-full flex items-center justify-center p-4 sm:p-6 bg-gradient-to-br from-[#E0F7FA] via-white to-[#B2DFDB] relative overflow-hidden" 
+      : "fixed inset-0 z-[100] w-screen h-screen h-[100dvh] overflow-y-auto flex items-center justify-center p-4 backdrop-blur-2xl bg-gradient-to-br from-[#E0F7FA]/95 via-[#E8F5E9]/95 to-[#B2DFDB]/95 animate-in fade-in zoom-in-95 duration-200"
+    }>
       {/* Decorative ambient background glows */}
       <div className="fixed -top-24 -left-24 w-96 h-96 bg-[#80CBC4]/35 rounded-full blur-3xl pointer-events-none" />
       <div className="fixed -bottom-24 -right-24 w-96 h-96 bg-[#FFE0B2]/35 rounded-full blur-3xl pointer-events-none" />
       <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-[#E0F2F1]/50 rounded-full blur-3xl pointer-events-none" />
 
       {/* Main Login Card */}
-      <div className="relative w-full max-w-md bg-white border border-[#B2DFDB] rounded-3xl p-6 sm:p-7 shadow-2xl text-slate-800 overflow-y-auto max-h-[88vh] my-auto z-10">
+      <div className="relative w-full max-w-md bg-white border border-[#B2DFDB] rounded-3xl p-6 sm:p-7 shadow-2xl text-slate-800 overflow-y-auto max-h-[90vh] my-auto z-10">
         
-        {/* Close Button */}
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
-          aria-label="Tutup modal login"
-        >
-          <X className="w-5 h-5" />
-        </button>
+        {/* Close Button - Sembunyikan jika gerbang login utama */}
+        {!isGate && (
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
+            aria-label="Tutup modal login"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        )}
 
         {/* Mascot / Leaf 3D Header Illustration */}
         <div className="text-center space-y-2 pt-1">
@@ -338,7 +342,12 @@ export default function LoginModal({
         </form>
 
       </div>
-    </div>,
-    document.body
+    </div>
   );
+
+  if (isGate) {
+    return modalContent;
+  }
+
+  return createPortal(modalContent, document.body);
 }

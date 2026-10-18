@@ -19,7 +19,9 @@ import {
 } from '../data/mockData';
 
 import { supabase, isSupabaseConfigured, checkSupabaseConnection } from '../lib/supabaseClient';
-import { safeGetItem, safeSetItem, pruneFifo } from '../utils/safeStorage';
+import { safeGetItem, safeSetItem, pruneFifo, safeGetSessionStorage, safeSetSessionStorage } from '../utils/safeStorage';
+
+export const ACTIVE_SESSION_STORAGE_KEY = 'ecoschola_active_session';
 
 // Versioning and Master Migration Key
 const MIGRATION_VERSION_KEY = 'ecoschola_app_version';
@@ -333,14 +335,17 @@ export const ecoDataService = {
 
   async getSession() {
     await simulateNetwork(20);
-    return loadFromStorage(STORAGE_KEYS.SESSION, {
-      isLoggedIn: true,
-      token: 'session_token_kader_8a',
-      role: 'siswa',
-      className: 'Kelas 8A',
-      userName: 'Kader Kelas 8A',
-      loginAt: new Date().toISOString()
-    });
+    // Cleanup any lingering legacy session in localStorage
+    try {
+      localStorage.removeItem(STORAGE_KEYS.SESSION);
+      localStorage.removeItem('ecoschola_session_v1');
+    } catch (e) {}
+
+    const session = safeGetSessionStorage(ACTIVE_SESSION_STORAGE_KEY, null);
+    if (!session || !session.isLoggedIn) {
+      return null;
+    }
+    return session;
   },
 
   async login({ role, className = 'Kelas 8A', pin, username, password, teacherName, userName, isSuperadmin }) {
@@ -370,7 +375,8 @@ export const ecoDataService = {
             isSuperadmin: dbUser.role === 'superadmin',
             loginAt: timestamp
           };
-          saveToStorage(STORAGE_KEYS.SESSION, sessionData);
+          safeSetSessionStorage(ACTIVE_SESSION_STORAGE_KEY, sessionData);
+          try { localStorage.removeItem(STORAGE_KEYS.SESSION); } catch (e) {}
           return sessionData;
         }
       } catch (e) {
@@ -411,30 +417,29 @@ export const ecoDataService = {
       };
     }
 
-    saveToStorage(STORAGE_KEYS.SESSION, sessionData);
+    safeSetSessionStorage(ACTIVE_SESSION_STORAGE_KEY, sessionData);
+    try { localStorage.removeItem(STORAGE_KEYS.SESSION); } catch (e) {}
     return sessionData;
   },
 
   async switchClass(newClass) {
     const current = await this.getSession();
+    if (!current) return null;
     const updated = {
       ...current,
       className: newClass
     };
-    saveToStorage(STORAGE_KEYS.SESSION, updated);
+    safeSetSessionStorage(ACTIVE_SESSION_STORAGE_KEY, updated);
     return updated;
   },
 
   async logout() {
-    const guestSession = {
-      isLoggedIn: false,
-      token: null,
-      role: 'guest',
-      className: 'Kelas 8A',
-      userName: 'Tamu / Pengunjung'
-    };
-    saveToStorage(STORAGE_KEYS.SESSION, guestSession);
-    return guestSession;
+    safeSetSessionStorage(ACTIVE_SESSION_STORAGE_KEY, null);
+    try {
+      localStorage.removeItem(STORAGE_KEYS.SESSION);
+      localStorage.removeItem('ecoschola_session_v1');
+    } catch (e) {}
+    return null;
   },
 
   // =========================================================================
@@ -1085,15 +1090,11 @@ export const ecoDataService = {
       } catch (e) {}
     });
 
-    const defaultSession = {
-      isLoggedIn: true,
-      token: 'session_token_kader_8a',
-      role: 'siswa',
-      className: 'Kelas 8A',
-      userName: 'Ahmad Rayhan (Kader 8A)',
-      loginAt: new Date().toISOString()
-    };
-    saveToStorage(STORAGE_KEYS.SESSION, defaultSession);
+    safeSetSessionStorage(ACTIVE_SESSION_STORAGE_KEY, null);
+    try {
+      localStorage.removeItem(STORAGE_KEYS.SESSION);
+    } catch (e) {}
+
     saveToStorage(STORAGE_KEYS.LEADERBOARD, classLeaderboard);
     saveToStorage(STORAGE_KEYS.CARBON_STATS, initialCarbonStats);
     saveToStorage(STORAGE_KEYS.PLANTS, initialPlantList);
@@ -1105,7 +1106,7 @@ export const ecoDataService = {
     saveToStorage(STORAGE_KEYS.CLASS_PROFILES, classesProfileData);
 
     return {
-      session: defaultSession,
+      session: null,
       leaderboard: classLeaderboard,
       carbonStats: initialCarbonStats,
       plantList: initialPlantList,

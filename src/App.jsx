@@ -12,7 +12,7 @@ import LoginModal from './components/LoginModal';
 import ClassProfileModal from './components/ClassProfileModal';
 
 // Data Service Layer
-import ecoDataService, { recalculateLeaderboardRanks, STORAGE_KEYS } from './services/ecoDataService';
+import ecoDataService, { recalculateLeaderboardRanks, STORAGE_KEYS, ACTIVE_SESSION_STORAGE_KEY } from './services/ecoDataService';
 import { 
   initialSchoolInfo, 
   initialCarbonStats, 
@@ -24,7 +24,7 @@ import {
   classesProfileData
 } from './data/mockData';
 
-import { safeGetItem, safeSetItem, pruneFifo } from './utils/safeStorage';
+import { safeGetItem, safeSetItem, pruneFifo, safeGetSessionStorage } from './utils/safeStorage';
 import { validateSessionIntegrity, DEFAULT_SAFE_SESSION } from './utils/security';
 
 const sanitizeTransactions = (txList) => {
@@ -82,9 +82,9 @@ export default function App() {
     };
   }, []);
 
-  // User Authentication & Session State with integrity validation against official lists
+  // User Authentication & Session State loaded from sessionStorage (null if not authenticated)
   const [session, setSession] = useState(() => {
-    const rawSession = safeGetItem(STORAGE_KEYS.SESSION, DEFAULT_SAFE_SESSION);
+    const rawSession = safeGetSessionStorage(ACTIVE_SESSION_STORAGE_KEY, null);
     const { session: validated } = validateSessionIntegrity(rawSession);
     return validated;
   });
@@ -95,8 +95,8 @@ export default function App() {
   const [profileModalClass, setProfileModalClass] = useState('Kelas 8A');
 
   // Auto-sync core states to LocalStorage via safeSetItem (QuotaExceededError handled)
+  // NOTE: Sesi login aktif disimpan di sessionStorage ('ecoschola_active_session')
   useEffect(() => {
-    safeSetItem(STORAGE_KEYS.SESSION, session);
     safeSetItem(STORAGE_KEYS.LEADERBOARD, leaderboard);
     safeSetItem(STORAGE_KEYS.CARBON, carbonStats);
     safeSetItem(STORAGE_KEYS.PLANTS, plantList);
@@ -104,7 +104,7 @@ export default function App() {
     safeSetItem(STORAGE_KEYS.MISSIONS, missions);
     safeSetItem(STORAGE_KEYS.ACTIVITIES, pruneFifo(recentActivities, 50));
     safeSetItem(STORAGE_KEYS.CLASS_PROFILES, classProfiles);
-  }, [session, leaderboard, carbonStats, plantList, transactions, missions, recentActivities, classProfiles]);
+  }, [leaderboard, carbonStats, plantList, transactions, missions, recentActivities, classProfiles]);
 
   // Open profile modal for any class
   const handleOpenClassProfile = useCallback((targetClass) => {
@@ -161,9 +161,10 @@ export default function App() {
   };
 
   const handleLogout = async () => {
-    const guestSession = await ecoDataService.logout();
-    setSession(guestSession);
-    setLoginModalOpen(true);
+    await ecoDataService.logout();
+    setSession(null);
+    setLoginModalOpen(false);
+    setClassProfileModalOpen(false);
   };
 
   const handleSwitchClass = async (newClass) => {
@@ -174,7 +175,8 @@ export default function App() {
   // Reset Demo Data to pristine clean state
   const handleResetDemoData = async () => {
     const fresh = await ecoDataService.resetDemoData();
-    setSession(fresh.session);
+    setSession(null);
+    setClassProfileModalOpen(false);
     setLeaderboard(fresh.leaderboard);
     setCarbonStats(fresh.carbonStats);
     setPlantList(fresh.plantList);
@@ -226,6 +228,23 @@ export default function App() {
       setPwaModalOpen(true);
     }
   };
+
+  // =========================================================================
+  // AUTH GUARD: Gerbang Utama Login Layar Penuh (Conditional Rendering)
+  // Jika belum login (!session || !session.isLoggedIn), render HANYA LoginModal
+  // Jangan me-render Navbar, Beranda/Dashboard, maupun konten di belakangnya.
+  // =========================================================================
+  if (!session || !session.isLoggedIn) {
+    return (
+      <LoginModal
+        isOpen={true}
+        isGate={true}
+        onClose={() => {}}
+        currentClass={myClass}
+        onLoginSuccess={handleLoginSuccess}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen text-slate-800 flex flex-col font-sans transition-colors">
@@ -342,11 +361,11 @@ export default function App() {
         onSaveProfile={handleSaveClassProfile}
         onSwitchAccount={() => {
           setClassProfileModalOpen(false);
-          setLoginModalOpen(true);
+          handleLogout();
         }}
         onOpenLogin={() => {
           setClassProfileModalOpen(false);
-          setLoginModalOpen(true);
+          handleLogout();
         }}
         onLogout={handleLogout}
         onResetDemo={handleResetDemoData}
