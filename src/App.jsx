@@ -45,7 +45,6 @@ export default function App() {
   const [currentTab, setCurrentTab] = useState('beranda');
   const [aksiSubTab, setAksiSubTab] = useState('setor'); // 'setor' | 'audit'
   const [pwaModalOpen, setPwaModalOpen] = useState(false);
-  const [resetToast, setResetToast] = useState(null);
 
   // Core Data States with safe localStorage persistence and FIFO limits
   const [schoolInfo] = useState(initialSchoolInfo);
@@ -180,21 +179,6 @@ export default function App() {
     setSession(updated);
   };
 
-  // Reset Demo Data to pristine clean state
-  const handleResetDemoData = async () => {
-    const fresh = await ecoDataService.resetDemoData();
-    setSession(null);
-    setClassProfileModalOpen(false);
-    setLeaderboard(fresh.leaderboard);
-    setCarbonStats(fresh.carbonStats);
-    setPlantList(fresh.plantList);
-    setTransactions(fresh.transactions);
-    setMissions(fresh.missions);
-    setRecentActivities(fresh.activities);
-    setClassProfiles(fresh.classProfiles || classesProfileData);
-    setResetToast('Seluruh data EcoSchola berhasil di-reset ke kondisi awal demo juri! 🔄');
-    setTimeout(() => setResetToast(null), 4000);
-  };
 
   // PWA Install Event Management
   const [deferredPrompt, setDeferredPrompt] = useState(null);
@@ -257,13 +241,6 @@ export default function App() {
   return (
     <div className="min-h-screen text-slate-800 flex flex-col font-sans transition-colors">
       
-      {/* Toast Notification for Reset Demo */}
-      {resetToast && (
-        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 bg-[#E8F5E9] border border-[#A5D6A7] text-[#1B5E20] font-black text-xs px-4 py-3 rounded-2xl shadow-xl flex items-center gap-2 animate-pop">
-          <span>✨</span>
-          <span>{resetToast}</span>
-        </div>
-      )}
 
       {/* Top Navbar */}
       <Navbar
@@ -376,7 +353,6 @@ export default function App() {
           handleLogout();
         }}
         onLogout={handleLogout}
-        onResetDemo={handleResetDemoData}
       />
 
       {/* PWA Install Modal Prompt */}

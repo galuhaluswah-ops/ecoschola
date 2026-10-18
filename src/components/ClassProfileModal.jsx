@@ -36,8 +36,7 @@ export default function ClassProfileModal({
   onSaveProfile,
   onSwitchAccount,
   onOpenLogin,
-  onLogout,
-  onResetDemo
+  onLogout
 }) {
   const [profileTab, setProfileTab] = useState('piket'); // 'piket' | 'kader'
   const [isEditing, setIsEditing] = useState(false);
@@ -845,26 +844,6 @@ export default function ClassProfileModal({
                   Tutup
                 </button>
               </div>
-
-              {/* Reset Demo Data Button */}
-              {onResetDemo && (
-                <div className="text-center pt-1 border-t border-slate-100">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (window.confirm("Kembalikan seluruh data EcoSchola ke kondisi demo awal sebelum presentasi juri?")) {
-                        onResetDemo();
-                        onClose();
-                      }
-                    }}
-                    className="text-[11px] font-bold text-slate-400 hover:text-red-600 hover:underline transition-colors cursor-pointer inline-flex items-center gap-1.5 py-1 px-2.5 rounded-lg hover:bg-red-50"
-                    title="Gunakan ini untuk membersihkan data setelah latihan demo"
-                  >
-                    <span>🔄</span>
-                    <span>Reset Data Demo ke Kondisi Awal</span>
-                  </button>
-                </div>
-              )}
             </div>
           </>
         )}
