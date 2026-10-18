@@ -1,0 +1,97 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    background: linear-gradient(135deg, #E0F7FA 0%, #EDF7F4 45%, #B2DFDB 100%);
+    background-attachment: fixed;
+    color: #2D3748;
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+    touch-action: manipulation;
+  }
+
+  /* Safe tap highlights on mobile */
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* Animations */
+@keyframes popIn {
+  0% { transform: scale(0.96); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.animate-pop {
+  animation: popIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Nav Item Smooth Orange Underline Hover */
+.nav-item-link {
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.nav-item-link::after {
+  content: '';
+  position: absolute;
+  bottom: 0px;
+  left: 50%;
+  width: 0%;
+  height: 2.5px;
+  background-color: #FF9800;
+  border-radius: 9999px;
+  transition: all 0.22s ease-in-out;
+  transform: translateX(-50%);
+}
+
+.nav-item-link:hover::after {
+  width: 65%;
+}
+
+/* Custom friendly scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(224, 247, 250, 0.5);
+}
+
+::-webkit-scrollbar-thumb {
+  background: #80CBC4;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #2E7D32;
+}
+
+/* Print Clean Styles */
+@media print {
+  nav, #bottom-nav, .no-print, button {
+    display: none !important;
+  }
+
+  body {
+    background: #FFFFFF !important;
+    color: #000000 !important;
+    font-size: 10pt !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .print-page {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+}

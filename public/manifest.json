@@ -1,0 +1,30 @@
+{
+  "name": "EcoSchola: Smart Adiwiyata & School Carbon Tracker",
+  "short_name": "EcoSchola",
+  "description": "Smart Adiwiyata & School Carbon Tracker - Monitoring Jejak Karbon, Konservasi Tanaman, Bank Sampah, dan Audit Sekolah Hijau",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#06150f",
+  "theme_color": "#10b981",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "categories": ["education", "productivity", "utilities"],
+  "screenshots": []
+}
