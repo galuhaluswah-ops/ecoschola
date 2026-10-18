@@ -92,7 +92,14 @@ export default function App() {
   const myClass = session?.className || 'Kelas 8A';
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [classProfileModalOpen, setClassProfileModalOpen] = useState(false);
-  const [profileModalClass, setProfileModalClass] = useState('Kelas 8A');
+  const [profileModalClass, setProfileModalClass] = useState(() => session?.className || 'Kelas 8A');
+
+  // Sinkronkan target Profil Kelas otomatis saat pengguna login/berganti akun
+  useEffect(() => {
+    if (session?.className) {
+      setProfileModalClass(session.className);
+    }
+  }, [session?.className]);
 
   // Auto-sync core states to LocalStorage via safeSetItem (QuotaExceededError handled)
   // NOTE: Sesi login aktif disimpan di sessionStorage ('ecoschola_active_session')
@@ -106,11 +113,12 @@ export default function App() {
     safeSetItem(STORAGE_KEYS.CLASS_PROFILES, classProfiles);
   }, [leaderboard, carbonStats, plantList, transactions, missions, recentActivities, classProfiles]);
 
-  // Open profile modal for any class
+  // Open profile modal for any class (eksplisit mengutamakan targetClass yang dikirim)
   const handleOpenClassProfile = useCallback((targetClass) => {
-    setProfileModalClass(targetClass || myClass);
+    const finalTarget = targetClass || session?.className || myClass;
+    setProfileModalClass(finalTarget);
     setClassProfileModalOpen(true);
-  }, [myClass]);
+  }, [session?.className, myClass]);
 
   // Save class profile handler with real-time state synchronization
   const handleSaveClassProfile = async (targetClass, updatedData) => {
@@ -268,7 +276,7 @@ export default function App() {
         myClass={myClass}
         userSession={session}
         syncStatus={syncStatus}
-        onOpenClassProfile={() => setClassProfileModalOpen(true)}
+        onOpenClassProfile={handleOpenClassProfile}
         onOpenLogin={() => setLoginModalOpen(true)}
         onSelectClass={handleSwitchClass}
         onLogout={handleLogout}
@@ -289,7 +297,7 @@ export default function App() {
             setMissions={setMissions}
             onNavigate={handleNavigate}
             recentActivities={recentActivities}
-            onOpenClassProfile={() => setClassProfileModalOpen(true)}
+            onOpenClassProfile={handleOpenClassProfile}
             onOpenLogin={() => setLoginModalOpen(true)}
             onAddRecentActivity={handleAddRecentActivity}
             userSession={session}

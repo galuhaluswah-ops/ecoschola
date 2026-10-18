@@ -308,7 +308,7 @@ export default function HomeView({
               {isGuru ? 'Anda memantau aktivitas dan pencapaian ' : 'Kamu login sebagai '}
               <button
                 type="button"
-                onClick={onOpenClassProfile}
+                onClick={() => onOpenClassProfile && onOpenClassProfile(myClass)}
                 className="font-extrabold text-[#2E7D32] hover:text-[#1B5E20] bg-white hover:bg-[#E0F7FA] px-2.5 py-0.5 rounded-lg border border-[#80CBC4] shadow-xs inline-flex items-center gap-1 transition-all cursor-pointer underline decoration-dotted"
                 title="Klik untuk melihat Profil & Regu Piket Kelas"
               >
@@ -322,50 +322,56 @@ export default function HomeView({
             </p>
           </div>
 
-          {/* Badge Level Card with 5-Day Championship Evaluation Cycle - Clickable to open Profile */}
+          {/* Kartu STATUS KELAS Simetris & Terpusat (Center) */}
           <div 
-            onClick={onOpenClassProfile}
-            className="bg-white hover:bg-[#E0F7FA]/40 p-4 rounded-2xl border border-[#B2DFDB] hover:border-[#80CBC4] shadow-md shrink-0 flex items-center gap-3.5 cursor-pointer transition-all active:scale-95 group max-w-xs sm:max-w-sm"
+            onClick={() => onOpenClassProfile && onOpenClassProfile(myClass)}
+            className="flex flex-col items-center justify-center text-center p-5 px-6 bg-white rounded-3xl shadow-sm hover:shadow-md border border-teal-100/80 hover:border-teal-300 transition-all cursor-pointer active:scale-98 group w-full sm:w-auto min-w-[280px] sm:min-w-[310px] shrink-0"
             title="Klik untuk melihat Profil Kelas Lengkap & Detail Evaluasi 5 Hari"
           >
-            <div className={`w-12 h-12 rounded-2xl border flex items-center justify-center text-2xl shrink-0 group-hover:scale-105 transition-transform ${
-              championshipStatus.isNeutral
-                ? 'bg-gradient-to-t from-emerald-100 to-teal-50 border-emerald-300 text-emerald-700 shadow-xs'
-                : championshipStatus.theme === 'gold'
-                ? 'bg-gradient-to-t from-yellow-400 to-yellow-200 border-yellow-300 shadow-gold'
-                : 'bg-gradient-to-t from-teal-100 to-teal-50 border-teal-300 shadow-xs'
-            }`}>
-              {championshipStatus.isNeutral ? '🌱' : '🏆'}
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-400 block">Status Kelas</span>
-                <span className="text-xs text-[#FF9800] font-bold group-hover:underline">Buka Profil ➜</span>
-              </div>
-              
-              {/* Lencana Status Kejuaraan / Evaluasi 5 Hari */}
-              <div className={`inline-block px-2.5 py-0.5 rounded-lg font-black text-xs border shadow-xs my-0.5 ${
+            {/* Baris 1 (Atas): Ikon Tanaman/Piala & Header STATUS KELAS Terpusat */}
+            <div className="flex flex-col items-center justify-center gap-1.5 mb-2.5">
+              <div className={`w-11 h-11 rounded-2xl border flex items-center justify-center text-2xl group-hover:scale-105 transition-transform ${
                 championshipStatus.isNeutral
-                  ? 'bg-emerald-50 text-emerald-900 border-emerald-300'
+                  ? 'bg-gradient-to-t from-emerald-100 to-teal-50 border-emerald-300 text-emerald-700 shadow-xs'
                   : championshipStatus.theme === 'gold'
-                  ? 'bg-gradient-to-t from-yellow-400 to-yellow-200 text-amber-950 border-yellow-300'
-                  : 'bg-teal-50 text-teal-900 border-teal-300'
+                  ? 'bg-gradient-to-t from-yellow-400 to-yellow-200 border-yellow-300 shadow-gold'
+                  : 'bg-gradient-to-t from-teal-100 to-teal-50 border-teal-300 shadow-xs'
               }`}>
-                {championshipStatus.badgeText}
+                {championshipStatus.isNeutral ? '🌱' : '🏆'}
               </div>
+              <span className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400">
+                STATUS KELAS ({myClass})
+              </span>
+            </div>
 
-              {/* Sub-teks info: ⏳ Penentuan Badge Juara: X Hari Lagi & Poin */}
-              <div className="space-y-0.5">
-                <span className="text-[11px] font-bold text-amber-700 block">
-                  {championshipStatus.subText}
-                </span>
-                <span className="text-xs font-bold text-[#2E7D32] block">
-                  {currentClassData.points > 0 ? `Peringkat #${currentClassData.rank} • ` : 'Klasemen Awal • '}
-                  <strong className="text-sm font-black text-[#2E7D32]">
-                    {(currentClassData.points || 0).toLocaleString('id-ID')}
-                  </strong> Poin
-                </span>
-              </div>
+            {/* Baris 2 (Tengah): Badge Hijau di Tengah */}
+            <div className={`mx-auto inline-flex items-center justify-center px-3.5 py-1 rounded-full font-black text-xs border shadow-xs mb-2 ${
+              championshipStatus.isNeutral
+                ? 'bg-emerald-50 text-emerald-900 border-emerald-300'
+                : championshipStatus.theme === 'gold'
+                ? 'bg-gradient-to-t from-yellow-400 to-yellow-200 text-amber-950 border-yellow-300'
+                : 'bg-teal-50 text-teal-900 border-teal-300'
+            }`}>
+              {championshipStatus.badgeText}
+            </div>
+
+            {/* Baris 3 & 4: Teks Penentuan & Poin Rata Tengah */}
+            <div className="space-y-1 text-center w-full">
+              <span className="text-xs font-bold text-amber-700 block">
+                {championshipStatus.subText}
+              </span>
+              <span className="text-xs font-bold text-[#2E7D32] block">
+                {currentClassData.points > 0 ? `Peringkat #${currentClassData.rank} • ` : 'Klasemen Awal • '}
+                <strong className="text-sm font-black text-[#2E7D32]">
+                  {(currentClassData.points || 0).toLocaleString('id-ID')}
+                </strong> Poin
+              </span>
+            </div>
+
+            {/* Baris 5 (Bawah): Tombol Buka Profil Kelas di Tengah Bawah */}
+            <div className="mt-3 mx-auto inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-orange-50/80 hover:bg-orange-100/90 text-orange-600 font-bold text-xs border border-orange-200/80 shadow-xs transition-colors">
+              <span>Buka Profil Kelas</span>
+              <span>➔</span>
             </div>
           </div>
         </div>

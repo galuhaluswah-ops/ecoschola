@@ -225,7 +225,7 @@ export default function Navbar({
                   type="button"
                   onClick={() => {
                     setDropdownOpen(false);
-                    if (onOpenClassProfile) onOpenClassProfile();
+                    if (onOpenClassProfile) onOpenClassProfile(myClass);
                   }}
                   className="w-full flex items-center justify-between gap-2 p-2 rounded-xl bg-[#E0F7FA]/60 hover:bg-[#E0F7FA] text-[#00695C] text-xs font-bold transition-colors cursor-pointer"
                 >

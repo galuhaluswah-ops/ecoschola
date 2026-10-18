@@ -105,16 +105,16 @@ export default function LoginModal({
 
   const modalContent = (
     <div className={isGate 
-      ? "min-h-screen min-h-[100dvh] w-full flex items-center justify-center p-4 sm:p-6 bg-gradient-to-br from-[#E0F7FA] via-white to-[#B2DFDB] relative overflow-hidden" 
-      : "fixed inset-0 z-[100] w-screen h-screen h-[100dvh] overflow-y-auto flex items-center justify-center p-4 backdrop-blur-2xl bg-gradient-to-br from-[#E0F7FA]/95 via-[#E8F5E9]/95 to-[#B2DFDB]/95 animate-in fade-in zoom-in-95 duration-200"
+      ? "h-screen h-[100dvh] w-full overflow-hidden flex items-center justify-center p-4 bg-gradient-to-br from-[#E0F7FA] via-white to-[#B2DFDB] relative select-none" 
+      : "fixed inset-0 z-[100] w-screen h-screen h-[100dvh] overflow-hidden flex items-center justify-center p-4 backdrop-blur-2xl bg-gradient-to-br from-[#E0F7FA]/95 via-[#E8F5E9]/95 to-[#B2DFDB]/95 animate-in fade-in zoom-in-95 duration-200"
     }>
       {/* Decorative ambient background glows */}
       <div className="fixed -top-24 -left-24 w-96 h-96 bg-[#80CBC4]/35 rounded-full blur-3xl pointer-events-none" />
       <div className="fixed -bottom-24 -right-24 w-96 h-96 bg-[#FFE0B2]/35 rounded-full blur-3xl pointer-events-none" />
       <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-[#E0F2F1]/50 rounded-full blur-3xl pointer-events-none" />
 
-      {/* Main Login Card */}
-      <div className="relative w-full max-w-md bg-white border border-[#B2DFDB] rounded-3xl p-6 sm:p-7 shadow-2xl text-slate-800 overflow-y-auto max-h-[90vh] my-auto z-10">
+      {/* Main Login Card - overflow-visible tanpa scrollbar */}
+      <div className="relative w-full max-w-md bg-white border border-[#B2DFDB] rounded-3xl p-6 sm:p-7 shadow-2xl text-slate-800 overflow-visible my-auto z-10">
         
         {/* Close Button - Sembunyikan jika gerbang login utama */}
         {!isGate && (
