@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { 
-  Sparkles, 
-  Download, 
+  Sparkles,
   Leaf, 
   Trophy, 
   Heart,
@@ -143,15 +142,7 @@ export default function Navbar({
             <span>{syncStatus === 'cloud' ? '☁️ Cloud Synced' : '⚡ Local Mode'}</span>
           </div>
 
-          {canInstallPwa && !isPwaInstalled && (
-            <button
-              onClick={onInstallPwa}
-              className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#FF9800] to-[#F57C00] hover:from-[#F57C00] hover:to-[#E65100] text-white text-xs font-black flex items-center gap-1.5 transition-all shadow-orange active:scale-95 cursor-pointer animate-pulse hover:animate-none"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span className="hidden md:inline">Pasang</span>
-            </button>
-          )}
+
 
           {/* Custom Dropdown Switcher Kelas di Navbar */}
           <div ref={dropdownRef} className="relative">
