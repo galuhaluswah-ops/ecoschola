@@ -26,6 +26,7 @@ import {
 
 import { safeGetItem, safeSetItem, pruneFifo, safeGetSessionStorage } from './utils/safeStorage';
 import { validateSessionIntegrity, DEFAULT_SAFE_SESSION } from './utils/security';
+import { isStandaloneMode, isMobileDevice, shareAppInvite } from './utils/pwaHelper';
 
 const sanitizeTransactions = (txList) => {
   if (!Array.isArray(txList)) return [];
@@ -180,23 +181,36 @@ export default function App() {
   };
 
 
-  // PWA Install Event Management
+  // PWA Install & Auto-Prompt Event Management
   const [deferredPrompt, setDeferredPrompt] = useState(null);
-  const [isPwaInstalled, setIsPwaInstalled] = useState(false);
+  const [isPwaInstalled, setIsPwaInstalled] = useState(() => isStandaloneMode());
+  const [pwaModalTab, setPwaModalTab] = useState('install');
 
   useEffect(() => {
-    if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
+    if (isStandaloneMode()) {
       setIsPwaInstalled(true);
+    }
+
+    // Auto-open modal if URL contains ?install=true and not already in standalone mode
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('install') === 'true' && !isStandaloneMode()) {
+      setPwaModalTab('install');
+      setPwaModalOpen(true);
     }
 
     const handleBeforeInstallPrompt = (e) => {
       e.preventDefault();
       setDeferredPrompt(e);
+      // If user came via ?install=true on mobile Android, automatically prompt
+      if (new URLSearchParams(window.location.search).get('install') === 'true') {
+        e.prompt().catch(() => {});
+      }
     };
 
     const handleAppInstalled = () => {
       setIsPwaInstalled(true);
       setDeferredPrompt(null);
+      setPwaModalOpen(false);
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
@@ -214,9 +228,11 @@ export default function App() {
       const { outcome } = await deferredPrompt.userChoice;
       if (outcome === 'accepted') {
         setIsPwaInstalled(true);
+        setPwaModalOpen(false);
       }
       setDeferredPrompt(null);
     } else {
+      setPwaModalTab('install');
       setPwaModalOpen(true);
     }
   };
@@ -228,13 +244,39 @@ export default function App() {
   // =========================================================================
   if (!session || !session.isLoggedIn) {
     return (
-      <LoginModal
-        isOpen={true}
-        isGate={true}
-        onClose={() => {}}
-        currentClass={myClass}
-        onLoginSuccess={handleLoginSuccess}
-      />
+      <>
+        <LoginModal
+          isOpen={true}
+          isGate={true}
+          onClose={() => {}}
+          currentClass={myClass}
+          onLoginSuccess={handleLoginSuccess}
+          onOpenInstall={() => {
+            if (deferredPrompt) {
+              handleTriggerNativeInstall();
+            } else {
+              setPwaModalTab('install');
+              setPwaModalOpen(true);
+            }
+          }}
+          onOpenShare={() => {
+            setPwaModalTab('share');
+            setPwaModalOpen(true);
+          }}
+          isPwaInstalled={isPwaInstalled}
+          canInstallNative={!!deferredPrompt}
+        />
+
+        {/* PWA Smart Install & Share Modal for Login Gate */}
+        <PwaInstallModal
+          isOpen={pwaModalOpen}
+          onClose={() => setPwaModalOpen(false)}
+          onInstallNative={handleTriggerNativeInstall}
+          canInstallNative={!!deferredPrompt}
+          isInstalled={isPwaInstalled}
+          defaultTab={pwaModalTab}
+        />
+      </>
     );
   }
 
@@ -247,7 +289,18 @@ export default function App() {
         currentTab={currentTab}
         setCurrentTab={setCurrentTab}
         canInstallPwa={!!deferredPrompt}
-        onInstallPwa={() => setPwaModalOpen(true)}
+        onInstallPwa={() => {
+          if (deferredPrompt) {
+            handleTriggerNativeInstall();
+          } else {
+            setPwaModalTab('install');
+            setPwaModalOpen(true);
+          }
+        }}
+        onShareApp={() => {
+          setPwaModalTab('share');
+          setPwaModalOpen(true);
+        }}
         isPwaInstalled={isPwaInstalled}
         schoolInfo={schoolInfo}
         myClass={myClass}
@@ -355,13 +408,14 @@ export default function App() {
         onLogout={handleLogout}
       />
 
-      {/* PWA Install Modal Prompt */}
+      {/* PWA Install & Share Modal Prompt */}
       <PwaInstallModal
         isOpen={pwaModalOpen}
         onClose={() => setPwaModalOpen(false)}
         onInstallNative={handleTriggerNativeInstall}
         canInstallNative={!!deferredPrompt}
         isInstalled={isPwaInstalled}
+        defaultTab={pwaModalTab}
       />
 
       {/* Elegant Hybrid Sync Status Floating Badge */}

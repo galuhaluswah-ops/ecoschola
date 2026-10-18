@@ -13,18 +13,31 @@ import {
 } from 'lucide-react';
 import CustomDropdown from './CustomDropdown';
 import { SMP_CLASSES, OFFICIAL_GURU_ACCOUNTS } from '../data/mockData';
+import { isMobileDevice } from '../utils/pwaHelper';
 
 export default function LoginModal({ 
   isOpen, 
   onClose, 
   currentClass = 'Kelas 8A', 
   onLoginSuccess,
-  isGate = false
+  isGate = false,
+  onOpenInstall,
+  onOpenShare,
+  isPwaInstalled = false,
+  canInstallNative = false
 }) {
   const [activeRole, setActiveRole] = useState('siswa'); // 'siswa' | 'guru'
   const [selectedClass, setSelectedClass] = useState(currentClass || 'Kelas 8A');
   const [pinInput, setPinInput] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  
+  // Mobile Auto-Prompt Banner State
+  const [showMobileBanner, setShowMobileBanner] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    const isMobile = isMobileDevice();
+    const hasInstallParam = new URLSearchParams(window.location.search).get('install') === 'true';
+    return (isMobile || hasInstallParam) && !isPwaInstalled;
+  });
   
   // Guru specific credentials
   const [guruId, setGuruId] = useState('');
@@ -312,9 +325,67 @@ export default function LoginModal({
             <span>Masuk Sekarang</span>
             <ArrowRight className="w-4 h-4" />
           </button>
+
+          {/* Quick Actions: Pasang Aplikasi & Bagikan Link */}
+          <div className="pt-2 border-t border-slate-100 flex items-center justify-center gap-2.5 text-xs font-bold text-slate-500">
+            {!isPwaInstalled && (
+              <button
+                type="button"
+                onClick={onOpenInstall}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#E0F7FA] hover:bg-[#B2DFDB] text-[#00695C] transition-all cursor-pointer active:scale-95 shadow-xs"
+                title="Pasang EcoSchola di Layar Utama HP"
+              >
+                <span>📲</span>
+                <span>Pasang di HP</span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={onOpenShare}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all cursor-pointer active:scale-95"
+              title="Bagikan Tautan EcoSchola"
+            >
+              <span>🔗</span>
+              <span>Bagikan Aplikasi</span>
+            </button>
+          </div>
         </form>
 
       </div>
+
+      {/* Bottom Sheet / Pop-up Card "📲 Pasang Aplikasi EcoSchola" untuk Pengguna HP */}
+      {showMobileBanner && !isPwaInstalled && (
+        <div className="fixed bottom-3 inset-x-3 sm:inset-x-auto sm:right-6 sm:bottom-6 max-w-sm mx-auto z-40 bg-white/95 backdrop-blur-md border border-[#80CBC4] rounded-2xl p-3.5 shadow-2xl flex items-center justify-between gap-3 animate-pop">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-[#E0F7FA] border border-[#80CBC4] flex items-center justify-center text-xl shrink-0 shadow-xs">
+              📲
+            </div>
+            <div className="min-w-0">
+              <h4 className="text-xs font-black text-slate-800 truncate">Pasang Aplikasi EcoSchola</h4>
+              <p className="text-[10px] text-slate-500 truncate">Akses layar penuh & hemat kuota di HP</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={onOpenInstall}
+              className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#FF9800] to-[#F57C00] text-white text-[11px] font-black shadow-orange transition-all active:scale-95 cursor-pointer whitespace-nowrap"
+            >
+              Pasang
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowMobileBanner(false)}
+              className="p-1 rounded-lg text-slate-400 hover:text-slate-600 cursor-pointer"
+              aria-label="Tutup banner"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 
