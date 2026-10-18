@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import ecoDataService from '../services/ecoDataService';
 import ManageMissionsModal from '../components/ManageMissionsModal';
+import { getClassChampionshipStatus, getEvaluationCycle } from '../utils/evaluationCycle';
 
 export default function HomeView({
   schoolInfo,
@@ -40,6 +41,21 @@ export default function HomeView({
   userSession
 }) {
   const isGuru = userSession?.role === 'guru' || userSession?.role === 'superadmin';
+
+  // Class Data & 5-Day Championship Status
+  const currentClassData = useMemo(() => {
+    return leaderboard.find(c => c.name === myClass) || {
+      name: myClass,
+      points: 0,
+      rank: 1,
+      totalKg: 0,
+      plantedTrees: 0
+    };
+  }, [leaderboard, myClass]);
+
+  const championshipStatus = useMemo(() => {
+    return getClassChampionshipStatus(currentClassData, leaderboard);
+  }, [currentClassData, leaderboard]);
 
   // Auto-Daily Rotation & Day Simulation State
   const [dayOffset, setDayOffset] = useState(0);
@@ -306,30 +322,50 @@ export default function HomeView({
             </p>
           </div>
 
-          {/* Badge Level Card with Gradient Emas Berkilau - Clickable to open Profile */}
+          {/* Badge Level Card with 5-Day Championship Evaluation Cycle - Clickable to open Profile */}
           <div 
             onClick={onOpenClassProfile}
-            className="bg-white hover:bg-[#E0F7FA]/40 p-4 rounded-2xl border border-[#B2DFDB] hover:border-[#80CBC4] shadow-md shrink-0 flex items-center gap-3.5 cursor-pointer transition-all active:scale-95 group"
-            title="Klik untuk melihat Profil Kelas Lengkap"
+            className="bg-white hover:bg-[#E0F7FA]/40 p-4 rounded-2xl border border-[#B2DFDB] hover:border-[#80CBC4] shadow-md shrink-0 flex items-center gap-3.5 cursor-pointer transition-all active:scale-95 group max-w-xs sm:max-w-sm"
+            title="Klik untuk melihat Profil Kelas Lengkap & Detail Evaluasi 5 Hari"
           >
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-t from-yellow-400 to-yellow-200 border border-yellow-300 flex items-center justify-center text-2xl shadow-gold shrink-0 group-hover:scale-105 transition-transform">
-              🏆
+            <div className={`w-12 h-12 rounded-2xl border flex items-center justify-center text-2xl shrink-0 group-hover:scale-105 transition-transform ${
+              championshipStatus.isNeutral
+                ? 'bg-gradient-to-t from-emerald-100 to-teal-50 border-emerald-300 text-emerald-700 shadow-xs'
+                : championshipStatus.theme === 'gold'
+                ? 'bg-gradient-to-t from-yellow-400 to-yellow-200 border-yellow-300 shadow-gold'
+                : 'bg-gradient-to-t from-teal-100 to-teal-50 border-teal-300 shadow-xs'
+            }`}>
+              {championshipStatus.isNeutral ? '🌱' : '🏆'}
             </div>
-            <div>
+            <div className="min-w-0">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-400 block">Status Kelas</span>
                 <span className="text-xs text-[#FF9800] font-bold group-hover:underline">Buka Profil ➜</span>
               </div>
               
-              {/* Lencana Pemenang Juara dengan Gradasi Emas Berkilau */}
-              <div className="inline-block px-2.5 py-0.5 rounded-lg bg-gradient-to-t from-yellow-400 to-yellow-200 text-amber-950 font-black text-xs border border-yellow-300 shadow-xs my-0.5">
-                {classData?.badge || 'Juara Emas 🥇'}
+              {/* Lencana Status Kejuaraan / Evaluasi 5 Hari */}
+              <div className={`inline-block px-2.5 py-0.5 rounded-lg font-black text-xs border shadow-xs my-0.5 ${
+                championshipStatus.isNeutral
+                  ? 'bg-emerald-50 text-emerald-900 border-emerald-300'
+                  : championshipStatus.theme === 'gold'
+                  ? 'bg-gradient-to-t from-yellow-400 to-yellow-200 text-amber-950 border-yellow-300'
+                  : 'bg-teal-50 text-teal-900 border-teal-300'
+              }`}>
+                {championshipStatus.badgeText}
               </div>
 
-              {/* Status Poin Berwarna Hijau Zamrud */}
-              <span className="text-xs font-bold text-[#2E7D32] block">
-                Peringkat #{classData?.rank || 1} • <strong className="text-sm font-black text-[#2E7D32]">{classData?.points.toLocaleString('id-ID')}</strong> Poin
-              </span>
+              {/* Sub-teks info: ⏳ Penentuan Badge Juara: X Hari Lagi & Poin */}
+              <div className="space-y-0.5">
+                <span className="text-[11px] font-bold text-amber-700 block">
+                  {championshipStatus.subText}
+                </span>
+                <span className="text-xs font-bold text-[#2E7D32] block">
+                  {currentClassData.points > 0 ? `Peringkat #${currentClassData.rank} • ` : 'Klasemen Awal • '}
+                  <strong className="text-sm font-black text-[#2E7D32]">
+                    {(currentClassData.points || 0).toLocaleString('id-ID')}
+                  </strong> Poin
+                </span>
+              </div>
             </div>
           </div>
         </div>

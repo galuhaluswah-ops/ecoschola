@@ -20,6 +20,7 @@ import {
 
 import { supabase, isSupabaseConfigured, checkSupabaseConnection } from '../lib/supabaseClient';
 import { safeGetItem, safeSetItem, pruneFifo, safeGetSessionStorage, safeSetSessionStorage } from '../utils/safeStorage';
+import { getClassChampionshipStatus, getEvaluationCycle } from '../utils/evaluationCycle';
 
 export const ACTIVE_SESSION_STORAGE_KEY = 'ecoschola_active_session';
 
@@ -113,21 +114,16 @@ const simulateNetwork = (ms = 80) => new Promise(resolve => setTimeout(resolve, 
  */
 export const recalculateLeaderboardRanks = (classesList) => {
   const sorted = [...classesList].sort((a, b) => (b.points || 0) - (a.points || 0));
-  return sorted.map((item, idx) => ({
-    ...item,
-    rank: idx + 1,
-    badge: idx === 0 
-      ? 'Juara Emas 🥇' 
-      : idx === 1 
-      ? 'Juara Perak 🥈' 
-      : idx === 2 
-      ? 'Juara Perunggu 🥉' 
-      : idx < 5 
-      ? 'Regu Teladan ⭐' 
-      : idx === 5 
-      ? 'Tunas Hijau 🌱' 
-      : 'Sahabat Hijau 🍃'
-  }));
+  return sorted.map((item, idx) => {
+    const rank = idx + 1;
+    const status = getClassChampionshipStatus({ ...item, rank }, sorted);
+    return {
+      ...item,
+      rank,
+      badge: status.badgeText,
+      championshipStatus: status
+    };
+  });
 };
 
 // State for hybrid cloud connection

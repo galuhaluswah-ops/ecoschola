@@ -44,8 +44,7 @@ export default function Navbar({
 
   const classList = useMemo(() => {
     return SMP_CLASSES.map(cls => ({
-      name: cls,
-      badge: cls === 'Kelas 8A' ? 'Juara 1 🥇' : cls === 'Kelas 9B' ? 'Juara 2 🥈' : cls === 'Kelas 7A' ? 'Juara 3 🥉' : null
+      name: cls
     }));
   }, []);
 
@@ -263,11 +262,6 @@ export default function Navbar({
                         >
                           <div className="flex items-center gap-2">
                             <span>{cls.name}</span>
-                            {cls.badge && (
-                              <span className="px-1.5 py-0.2 rounded-md text-[10px] font-bold bg-[#FFF9C4] text-[#F57F17] border border-[#FFF176]">
-                                {cls.badge}
-                              </span>
-                            )}
                           </div>
 
                           {isSelected && (

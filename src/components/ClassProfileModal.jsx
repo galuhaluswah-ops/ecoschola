@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { 
   X, 
@@ -23,6 +23,7 @@ import {
   BookOpen
 } from 'lucide-react';
 import { getClassProfile } from '../data/mockData';
+import { getClassChampionshipStatus } from '../utils/evaluationCycle';
 import { sanitizeInput, validateNumericInput } from '../utils/security';
 
 export default function ClassProfileModal({ 
@@ -47,12 +48,17 @@ export default function ClassProfileModal({
   // Active profile from prop or mockData
   const baseProfile = classProfiles[currentClass] || getClassProfile(currentClass);
   const classStats = leaderboard.find(c => c.name === currentClass) || {
+    name: currentClass,
     rank: 1,
-    points: 6820,
-    totalKg: 194.5,
-    cleanScore: 96,
-    badge: 'Juara Emas 🥇'
+    points: 0,
+    totalKg: 0,
+    cleanScore: 100,
+    badge: '🌱 Pejuang Aktif • Siklus Evaluasi 5 Hari'
   };
+
+  const championshipStatus = useMemo(() => {
+    return getClassChampionshipStatus(classStats, leaderboard);
+  }, [classStats, leaderboard]);
 
   const isGuru = userSession?.role === 'guru';
   const isSuperadmin = userSession?.role === 'superadmin';
@@ -293,8 +299,14 @@ export default function ClassProfileModal({
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <h2 className="text-xl font-black text-slate-800">{baseProfile.name || currentClass}</h2>
-                  <span className="px-2.5 py-0.5 rounded-full bg-gradient-to-t from-yellow-400 to-yellow-200 text-amber-950 font-black text-xs border border-yellow-300 shadow-xs">
-                    Peringkat #{classStats.rank}
+                  <span className={`px-2.5 py-0.5 rounded-full font-black text-xs border shadow-xs ${
+                    championshipStatus.isNeutral
+                      ? 'bg-emerald-50 text-emerald-900 border-emerald-300'
+                      : championshipStatus.theme === 'gold'
+                      ? 'bg-gradient-to-t from-yellow-400 to-yellow-200 text-amber-950 border-yellow-300'
+                      : 'bg-teal-50 text-teal-900 border-teal-300'
+                  }`}>
+                    {championshipStatus.badgeText}
                   </span>
                   {isGuru && (
                     <span className="px-2 py-0.5 rounded-full bg-orange-100 text-orange-800 font-extrabold text-[10px] border border-orange-200">
@@ -309,6 +321,11 @@ export default function ClassProfileModal({
                 </div>
                 <p className="text-xs font-bold text-[#2E7D32]">
                   {baseProfile.sloganBadge || 'Kader Adiwiyata Unggulan'}
+                </p>
+                <p className="text-[11px] font-bold text-amber-700 flex items-center gap-1.5 mt-0.5">
+                  <span>{championshipStatus.subText}</span>
+                  <span className="text-slate-400">•</span>
+                  <span className="text-[#2E7D32]">{(classStats.points || 0).toLocaleString('id-ID')} Poin</span>
                 </p>
               </div>
             </div>

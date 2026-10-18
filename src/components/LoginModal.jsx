@@ -5,7 +5,6 @@ import {
   KeyRound, 
   School, 
   CheckCircle2, 
-  Sparkles, 
   Eye, 
   EyeOff, 
   ArrowRight,
@@ -35,8 +34,7 @@ export default function LoginModal({
 
   const classList = SMP_CLASSES.map(cls => ({
     value: cls,
-    label: cls,
-    badge: cls === 'Kelas 8A' ? 'Juara 1 🥇' : cls === 'Kelas 9B' ? 'Juara 2 🥈' : cls === 'Kelas 7A' ? 'Juara 3 🥉' : null
+    label: cls
   }));
 
   // Lock body scroll when modal is open as overlay (not in gate mode)
@@ -104,17 +102,6 @@ export default function LoginModal({
     }
   };
 
-  // 1-Click Auto Fill Demo for Jurors / Evaluators
-  const handleAutoFillDemo = () => {
-    setErrorMsg(null);
-    if (activeRole === 'siswa') {
-      setSelectedClass('Kelas 8A');
-      setPinInput('1234');
-    } else {
-      setGuruId('gareta.eco');
-      setGuruPassword('1234');
-    }
-  };
 
   const modalContent = (
     <div className={isGate 
@@ -238,12 +225,11 @@ export default function LoginModal({
 
               {/* 2. Input KATA SANDI / PIN KELAS */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 flex items-center">
                   <span className="flex items-center gap-1.5">
                     <KeyRound className="w-3.5 h-3.5 text-[#FF9800]" />
                     <span>Kata Sandi / PIN Kelas:</span>
                   </span>
-                  <span className="text-xs font-normal text-slate-400">(Default Demo: 1234)</span>
                 </label>
                 <div className="relative">
                   <input
@@ -288,12 +274,11 @@ export default function LoginModal({
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 flex items-center">
                   <span className="flex items-center gap-1.5">
                     <KeyRound className="w-3.5 h-3.5 text-[#FF9800]" />
                     <span>Kata Sandi / Password:</span>
                   </span>
-                  <span className="text-xs font-normal text-slate-400">(Default: 1234)</span>
                 </label>
                 <div className="relative">
                   <input
@@ -317,18 +302,6 @@ export default function LoginModal({
             </>
           )}
 
-          {/* Opsi Isi Otomatis Akun Demo (Untuk Juri) */}
-          <div className="pt-0.5">
-            <button
-              type="button"
-              onClick={handleAutoFillDemo}
-              id="autofill-demo-btn"
-              className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#E0F7FA] to-[#E8F5E9] hover:from-[#B2DFDB]/50 hover:to-[#C8E6C9]/50 border border-[#80CBC4] text-[#2E7D32] text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs active:scale-98"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-[#FF9800]" />
-              <span>Isi Otomatis Akun Demo (Untuk Juri)</span>
-            </button>
-          </div>
 
           {/* Tombol Masuk Aksen Oranye Tropis (#FF9800) */}
           <button
