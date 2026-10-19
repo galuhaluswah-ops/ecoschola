@@ -1092,61 +1092,67 @@ export default function JelajahPohonView({
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
               />
               
-              {/* Gradient Scrim */}
+              {/* Gradient Scrim (Bawah) */}
               <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/25 to-black/30 pointer-events-none" />
 
-              {/* Top Floating Badges */}
-              <div className="absolute top-4 left-4 flex items-center gap-2 flex-wrap max-w-[80%]">
-                <span className="px-3 py-1 rounded-full bg-white/95 backdrop-blur-md text-xs font-black text-slate-800 shadow-sm border border-slate-200/60">
-                  {getCategoryMeta(selectedPlantForDetail.category).label}
-                </span>
-                <span className="px-2.5 py-1 rounded-full bg-emerald-600 text-white backdrop-blur-md text-xs font-black shadow-sm flex items-center gap-1 border border-emerald-400/40">
-                  🌱 Jumlah: {selectedPlantForDetail.quantity || selectedPlantForDetail.totalQuantity || 1} Tanaman
-                </span>
-                <span className="px-2.5 py-1 rounded-full bg-slate-900/80 backdrop-blur-md text-[11px] font-mono font-bold text-teal-300 border border-teal-400/30">
-                  {selectedPlantForDetail.qrCodeId || `ECO-TREE-${selectedPlantForDetail.id}`}
-                </span>
-              </div>
+              {/* Gradient Overlay Gelap Tipis di Bagian Atas untuk Kontras Maksimal */}
+              <div className="bg-gradient-to-b from-black/50 via-black/25 to-transparent h-20 absolute top-0 inset-x-0 rounded-t-3xl pointer-events-none" />
 
-              {/* Action Buttons Top Right: Edit & Delete */}
-              {canManagePlant(selectedPlantForDetail) && (
-                <div className="absolute top-4 right-14 flex items-center gap-1.5 z-10">
+              {/* Top Floating Header: Kategori (Kiri) & Grup Aksi + Tutup (Kanan) */}
+              <div className="absolute top-4 inset-x-4 flex items-center justify-between gap-3 z-10">
+                {/* Sisi Kiri: Badge Kategori Flora yang Ringkas */}
+                <div className="min-w-0 shrink">
+                  <span className="inline-flex items-center px-3 py-1.5 rounded-full bg-white/95 backdrop-blur-md text-xs font-black text-slate-800 shadow-sm border border-slate-200/60 truncate max-w-[200px] sm:max-w-xs">
+                    {getCategoryMeta(selectedPlantForDetail.category).label}
+                  </span>
+                </div>
+
+                {/* Sisi Kanan: Grup Tombol Aksi (Sunting & Hapus) + Tombol Tutup X */}
+                <div className="flex items-center gap-2 shrink-0">
+                  {canManagePlant(selectedPlantForDetail) && (
+                    <>
+                      {/* Tombol Sunting (Icon-Only Bulat) */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const p = selectedPlantForDetail;
+                          handleOpenEditModal(p);
+                        }}
+                        className="w-8 h-8 rounded-full bg-white/95 hover:bg-emerald-50 text-teal-700 shadow-sm border border-slate-200/80 backdrop-blur-md flex items-center justify-center transition-all hover:scale-105 active:scale-95 cursor-pointer"
+                        title="Sunting Data Tanaman"
+                        aria-label="Sunting Data Tanaman"
+                      >
+                        <Pencil className="w-3.5 h-3.5 text-teal-700" />
+                      </button>
+
+                      {/* Tombol Hapus (Icon-Only Bulat) */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const p = selectedPlantForDetail;
+                          handleOpenDeleteModal(p);
+                        }}
+                        className="w-8 h-8 rounded-full bg-white/95 hover:bg-red-50 text-red-500 shadow-sm border border-slate-200/80 backdrop-blur-md flex items-center justify-center transition-all hover:scale-105 active:scale-95 cursor-pointer"
+                        title="Hapus Tanaman"
+                        aria-label="Hapus Tanaman"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                      </button>
+                    </>
+                  )}
+
+                  {/* Tombol Tutup Silang "X" Melayang Bulat Gelap */}
                   <button
                     type="button"
-                    onClick={() => {
-                      const p = selectedPlantForDetail;
-                      handleOpenEditModal(p);
-                    }}
-                    className="px-2.5 py-1.5 rounded-full bg-white/95 hover:bg-emerald-50 text-emerald-800 text-xs font-black shadow-md border border-slate-200/80 backdrop-blur-md flex items-center gap-1 transition-all active:scale-95 cursor-pointer hover:border-emerald-300"
-                    title="Sunting Data Tanaman"
+                    onClick={() => setSelectedPlantForDetail(null)}
+                    className="bg-slate-900/60 backdrop-blur-sm text-white w-8 h-8 rounded-full flex items-center justify-center hover:bg-slate-900/80 transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-sm"
+                    aria-label="Tutup modal detail"
+                    title="Tutup"
                   >
-                    <Edit3 className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>Sunting</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const p = selectedPlantForDetail;
-                      handleOpenDeleteModal(p);
-                    }}
-                    className="px-2.5 py-1.5 rounded-full bg-white/95 hover:bg-red-50 text-red-600 text-xs font-black shadow-md border border-slate-200/80 backdrop-blur-md flex items-center gap-1 transition-all active:scale-95 cursor-pointer hover:border-red-300"
-                    title="Hapus Tanaman"
-                  >
-                    <Trash2 className="w-3.5 h-3.5 text-red-500" />
-                    <span>Hapus</span>
+                    <X className="w-4 h-4" />
                   </button>
                 </div>
-              )}
-
-              {/* Close Button Top Right */}
-              <button
-                type="button"
-                onClick={() => setSelectedPlantForDetail(null)}
-                className="absolute top-4 right-4 p-2 rounded-full bg-black/40 hover:bg-black/65 text-white backdrop-blur-md transition-colors cursor-pointer z-10"
-                aria-label="Tutup modal detail"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              </div>
 
               {/* Bottom Row on Hero: Location & Health Status */}
               <div className="absolute bottom-3 left-4 right-4 flex items-center justify-between text-xs text-white">
@@ -1164,6 +1170,27 @@ export default function JelajahPohonView({
             {/* Body Form (Scrollable di dalam modal) */}
             <div className="p-5 overflow-y-auto flex-1 space-y-4">
               
+              {/* Badge Sekunder: Kode Tanaman, Jumlah Tanaman, & Kelas Pengadopsi */}
+              <div className="flex items-center gap-2 flex-wrap">
+                {/* Kode Tanaman */}
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-900/85 text-teal-300 font-mono text-xs font-bold shadow-sm border border-slate-700" title="Kode QR / ID Tanaman">
+                  <span>📋</span>
+                  <span>{selectedPlantForDetail.qrCodeId || `ECO-TREE-${selectedPlantForDetail.id}`}</span>
+                </span>
+
+                {/* Jumlah Tanaman */}
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-teal-50 text-teal-800 text-xs font-bold border border-teal-200 shadow-sm" title="Populasi Tanaman">
+                  <span>🪴</span>
+                  <span>{selectedPlantForDetail.quantity || selectedPlantForDetail.totalQuantity || 1} Tanaman</span>
+                </span>
+
+                {/* Kelas Pengadopsi */}
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 text-xs font-bold border border-emerald-200 shadow-sm" title="Kelas Pengadopsi">
+                  <span>🏫</span>
+                  <span>{selectedPlantForDetail.responsibleClass || selectedPlantForDetail.adopted_by || 'Kelas 8A'}</span>
+                </span>
+              </div>
+
               {/* Identitas Tanaman */}
               <div className="space-y-1 pb-1 border-b border-slate-100">
                 <h2 className="text-xl sm:text-2xl font-black text-slate-800 tracking-tight">
