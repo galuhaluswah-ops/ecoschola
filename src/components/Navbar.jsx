@@ -12,9 +12,7 @@ import {
   School,
   ExternalLink,
   Lock,
-  LogOut,
-  Download,
-  Share2
+  LogOut
 } from 'lucide-react';
 import { SMP_CLASSES } from '../data/mockData';
 
@@ -119,55 +117,8 @@ export default function Navbar({
           })}
         </nav>
 
-        {/* Right Actions: Sync Status, PWA Install & Custom Dropdown Switcher Kelas */}
-        <div className="flex items-center gap-2">
-          {/* Sync Status Badge in Navbar Header (Desktop) */}
-          <div
-            className={`hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-black border transition-colors select-none ${
-              syncStatus === 'cloud'
-                ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                : 'bg-amber-50 text-amber-900 border-amber-200'
-            }`}
-            title={
-              syncStatus === 'cloud'
-                ? 'Terhubung ke Supabase PostgreSQL Cloud'
-                : 'Berjalan dalam Local Storage Hybrid Mode'
-            }
-          >
-            <span
-              className={`w-1.5 h-1.5 rounded-full ${
-                syncStatus === 'cloud' ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'
-              }`}
-            />
-            <span>{syncStatus === 'cloud' ? '☁️ Cloud Synced' : '⚡ Local Mode'}</span>
-          </div>
-
-
-
-          {/* Tombol Bagikan Aplikasi */}
-          <button
-            type="button"
-            onClick={onShareApp}
-            className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer shadow-xs"
-            title="Bagikan Tautan Aplikasi Al Uswah Green"
-          >
-            <Share2 className="w-3.5 h-3.5 text-[#0D9488]" />
-            <span className="hidden sm:inline">Bagikan</span>
-          </button>
-
-          {/* Tombol Oranye Pasang Aplikasi (Otomatis disembunyikan jika sudah dalam mode standalone / terpasang) */}
-          {!isPwaInstalled && (
-            <button
-              type="button"
-              onClick={onInstallPwa}
-              className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#FF9800] to-[#F57C00] hover:from-[#F57C00] hover:to-[#E65100] text-white text-xs font-black flex items-center gap-1.5 transition-all shadow-orange active:scale-95 cursor-pointer animate-pulse hover:animate-none"
-              title="Pasang Al Uswah Green di Layar Utama HP"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span className="hidden md:inline">Pasang Aplikasi</span>
-            </button>
-          )}
-
+        {/* Right Actions: Custom Dropdown Switcher Kelas */}
+        <div className="flex items-center shrink-0">
           {/* Custom Dropdown Switcher Kelas di Navbar */}
           <div ref={dropdownRef} className="relative">
             <button
