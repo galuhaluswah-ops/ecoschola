@@ -27,6 +27,7 @@ import { getClassChampionshipStatus, getEvaluationCycle } from '../utils/evaluat
 export default function HomeView({
   schoolInfo,
   carbonStats,
+  plantList = [],
   myClass = "Kelas 8A",
   leaderboard = [],
   setLeaderboard,
@@ -97,7 +98,13 @@ export default function HomeView({
 
   // Memoized total carbon metrics calculation for high performance
   const carbonMetrics = useMemo(() => {
-    const trees = carbonStats?.treesCataloged !== undefined ? Number(carbonStats.treesCataloged) : 0;
+    let totalPopulation = 0;
+    if (plantList && plantList.length > 0) {
+      totalPopulation = plantList.reduce((sum, p) => sum + Number(p.quantity || p.totalQuantity || 1), 0);
+    } else {
+      totalPopulation = carbonStats?.treesCataloged !== undefined ? Number(carbonStats.treesCataloged) : 0;
+    }
+    const trees = totalPopulation;
     const co2PerTreeKg = 14;
     const estAbsorption = Number(carbonStats?.totalCo2AbsorptionKgPerYear) || (trees * co2PerTreeKg);
     const energyPercent = carbonStats?.energyEfficiencyPercent !== undefined ? Number(carbonStats.energyEfficiencyPercent) : 100;
@@ -106,7 +113,7 @@ export default function HomeView({
       estAbsorption,
       energyPercent
     };
-  }, [carbonStats]);
+  }, [carbonStats, plantList]);
 
   // Helper to render visual icon instead of raw text
   const renderActivityIcon = useCallback((icon) => {

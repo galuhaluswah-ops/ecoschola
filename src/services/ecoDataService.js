@@ -151,6 +151,8 @@ export const mapDbTreeToFrontend = (t) => {
   const img = t.image || t.image_url || 'https://images.unsplash.com/photo-1542273917363-3b1817f69a2d?auto=format&fit=crop&w=600&q=80';
   const desc = t.notes || t.description || '';
 
+  const qty = Number(t.quantity || t.total_quantity || t.totalQuantity || 1);
+
   return {
     id,
     name: t.name || '',
@@ -162,7 +164,8 @@ export const mapDbTreeToFrontend = (t) => {
     co2AbsorptionKgPerYear: co2,
     co2_absorption: co2,
     location: t.location || 'Halaman Sekolah',
-    totalQuantity: Number(t.total_quantity || t.totalQuantity || 1),
+    quantity: qty,
+    totalQuantity: qty,
     healthStatus: t.health_status || t.healthStatus || 'Sangat Sehat',
     waterStatus: t.water_status || t.waterStatus || 'Sudah Disiram 🌿',
     lastWatered: t.last_watered || t.lastWatered || 'Hari ini',
@@ -190,6 +193,7 @@ export const mapFrontendTreeToDb = (plant) => {
   const img = plant.image || plant.image_url || '';
   const notes = plant.notes || plant.description || '';
   const code = plant.qrCodeId || plant.code || `ECO-${id}`;
+  const qty = Number(plant.quantity || plant.totalQuantity || 1);
 
   return {
     id,
@@ -199,7 +203,8 @@ export const mapFrontendTreeToDb = (plant) => {
     responsible_class: responsibleClass,
     co2_absorption_kg_per_year: co2,
     location: plant.location || 'Halaman Sekolah',
-    total_quantity: Number(plant.totalQuantity || 1),
+    quantity: qty,
+    total_quantity: qty,
     health_status: plant.healthStatus || 'Sangat Sehat',
     water_status: plant.waterStatus || 'Sudah Disiram 🌿',
     last_watered: plant.lastWatered || 'Hari ini',
@@ -882,7 +887,7 @@ export const ecoDataService = {
       // 1. Gather all current plants
       let allPlants = loadFromStorage(STORAGE_KEYS.PLANTS, []);
       if (supabase && currentSyncStatus === 'cloud') {
-        const { data: dbTrees } = await supabase.from('trees').select('responsible_class');
+        const { data: dbTrees } = await supabase.from('trees').select('responsible_class, quantity, total_quantity');
         if (dbTrees) {
           allPlants = dbTrees;
         }
@@ -891,7 +896,8 @@ export const ecoDataService = {
       const counts = {};
       allPlants.forEach(p => {
         const c = p.responsible_class || p.responsibleClass || p.adopted_by;
-        if (c) counts[c] = (counts[c] || 0) + 1;
+        const q = Number(p.quantity || p.total_quantity || p.totalQuantity || 1);
+        if (c) counts[c] = (counts[c] || 0) + q;
       });
 
       // 2. Update local leaderboard
@@ -939,6 +945,7 @@ export const ecoDataService = {
     await simulateNetwork(50);
     const current = await this.getPlants(false);
     const absorptionVal = parseFloat(plantData.co2AbsorptionKgPerYear || plantData.co2_absorption) || 15;
+    const qty = Math.max(1, parseInt(plantData.quantity || plantData.totalQuantity || 1, 10));
     const newId = plantData.id || `PLN-${Date.now()}`;
     const cleanName = plantData.name?.trim() || 'Tanaman Sekolah';
     const code = plantData.code || plantData.qrCodeId || `ECO-${cleanName.toUpperCase().replace(/\s+/g, '')}-${Date.now().toString().slice(-4)}`;
@@ -954,7 +961,8 @@ export const ecoDataService = {
       co2AbsorptionKgPerYear: absorptionVal,
       co2_absorption: absorptionVal,
       location: plantData.location || 'Halaman Sekolah',
-      totalQuantity: 1,
+      quantity: qty,
+      totalQuantity: qty,
       healthStatus: 'Sangat Sehat',
       waterStatus: 'Sudah Disiram 🌿',
       lastWatered: 'Hari ini, baru didata',
@@ -973,8 +981,8 @@ export const ecoDataService = {
 
     // Update carbon stats
     await this.incrementCarbonStats({
-      treesCataloged: 1,
-      totalCo2AbsorptionKgPerYear: absorptionVal
+      treesCataloged: qty,
+      totalCo2AbsorptionKgPerYear: Number((absorptionVal * qty).toFixed(1))
     });
 
     // Add activity log
@@ -984,9 +992,9 @@ export const ecoDataService = {
       icon: 'tree',
       title: `Pohon Baru: ${newPlant.name}`,
       actor: `${newPlant.responsibleClass} (Kader Siswa)`,
-      description: `Menambahkan koleksi tanaman "${newPlant.name}" (${newPlant.scientificName}) di ${newPlant.location}.`,
+      description: `Menambahkan koleksi tanaman "${newPlant.name}" (${newPlant.scientificName}) berjumlah ${qty} tanaman di ${newPlant.location}.`,
       category: 'Jelajah Pohon',
-      impact: `+${absorptionVal} kg CO₂/thn`,
+      impact: `+${(absorptionVal * qty).toFixed(1)} kg CO₂/thn`,
       status: 'Selesai'
     });
 
@@ -1025,6 +1033,8 @@ export const ecoDataService = {
     const newClass = updatedData.responsibleClass || updatedData.adopted_by || oldClass;
     const oldCo2 = Number(oldPlant.co2AbsorptionKgPerYear || 15);
     const newCo2 = Number(updatedData.co2AbsorptionKgPerYear ?? updatedData.co2_absorption ?? oldCo2);
+    const oldQty = Math.max(1, parseInt(oldPlant.quantity || oldPlant.totalQuantity || 1, 10));
+    const newQty = Math.max(1, parseInt(updatedData.quantity ?? updatedData.totalQuantity ?? oldQty, 10));
 
     const updatedPlant = {
       ...oldPlant,
@@ -1036,6 +1046,8 @@ export const ecoDataService = {
       category: updatedData.category || oldPlant.category,
       responsibleClass: newClass,
       adopted_by: newClass,
+      quantity: newQty,
+      totalQuantity: newQty,
       co2AbsorptionKgPerYear: newCo2,
       co2_absorption: newCo2,
       location: updatedData.location || oldPlant.location,
@@ -1050,10 +1062,12 @@ export const ecoDataService = {
     updatedList[existingIndex] = updatedPlant;
     saveToStorage(STORAGE_KEYS.PLANTS, updatedList);
 
-    // Update carbon stats delta if CO2 absorption changed
-    const co2Delta = newCo2 - oldCo2;
-    if (co2Delta !== 0) {
+    // Update carbon stats delta if quantity or CO2 absorption changed
+    const qtyDelta = newQty - oldQty;
+    const co2Delta = Number(((newCo2 * newQty) - (oldCo2 * oldQty)).toFixed(1));
+    if (qtyDelta !== 0 || co2Delta !== 0) {
       await this.incrementCarbonStats({
+        treesCataloged: qtyDelta,
         totalCo2AbsorptionKgPerYear: co2Delta
       });
     }
@@ -1065,9 +1079,9 @@ export const ecoDataService = {
       icon: 'sparkles',
       title: `Sunting Tanaman: ${updatedPlant.name}`,
       actor: `${newClass} (Kader Siswa)`,
-      description: `Memperbarui data tanaman "${updatedPlant.name}" (${updatedPlant.scientificName}) di ${updatedPlant.location}.`,
+      description: `Memperbarui data tanaman "${updatedPlant.name}" (${updatedPlant.scientificName}) berjumlah ${newQty} tanaman di ${updatedPlant.location}.`,
       category: 'Jelajah Pohon',
-      impact: `${newCo2} kg CO₂/thn`,
+      impact: `${(newCo2 * newQty).toFixed(1)} kg CO₂/thn`,
       status: 'Selesai'
     });
 
@@ -1116,11 +1130,12 @@ export const ecoDataService = {
 
     const targetClass = target.responsibleClass || target.adopted_by;
     const co2 = Number(target.co2AbsorptionKgPerYear || target.co2_absorption || 15);
+    const targetQty = Math.max(1, parseInt(target.quantity || target.totalQuantity || 1, 10));
 
     // Decrement carbon stats
     await this.incrementCarbonStats({
-      treesCataloged: -1,
-      totalCo2AbsorptionKgPerYear: -co2
+      treesCataloged: -targetQty,
+      totalCo2AbsorptionKgPerYear: -Number((co2 * targetQty).toFixed(1))
     });
 
     // Add activity log

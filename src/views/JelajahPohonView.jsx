@@ -26,9 +26,15 @@ import {
   AlertTriangle,
   Camera,
   Edit3,
-  Pencil
+  Pencil,
+  FileText,
+  FileSpreadsheet,
+  Download
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 import CustomDropdown from '../components/CustomDropdown';
 import { SMP_CLASSES } from '../data/mockData';
 import { sanitizeInput, validateNumericInput } from '../utils/security';
@@ -115,7 +121,7 @@ export default function JelajahPohonView({
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedPlantForDetail, setSelectedPlantForDetail] = useState(null);
 
-  // New Plant Form State
+  const [newQuantity, setNewQuantity] = useState('1');
   const [newName, setNewName] = useState('');
   const [newScientific, setNewScientific] = useState('');
   const [newCategory, setNewCategory] = useState('Pohon Pelindung & Peneduh');
@@ -136,6 +142,7 @@ export default function JelajahPohonView({
   // Edit Plant Modal & Form State
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingPlant, setEditingPlant] = useState(null);
+  const [editQuantity, setEditQuantity] = useState('1');
   const [editName, setEditName] = useState('');
   const [editScientific, setEditScientific] = useState('');
   const [editCategory, setEditCategory] = useState('Pohon Pelindung & Peneduh');
@@ -182,18 +189,30 @@ export default function JelajahPohonView({
     };
   }, [showAddModal, activeQrModal, selectedPlantForDetail, showEditModal, showDeleteModal]);
 
+  // Check if current user is Guru Pembina (gareta.eco, wyumna.eco) or Superadmin
+  const isGuruOrSuperadmin = useMemo(() => {
+    if (!userSession) return false;
+    return (
+      userSession.role === 'guru' ||
+      userSession.role === 'superadmin' ||
+      Boolean(userSession.isSuperadmin) ||
+      userSession.username === 'gareta.eco' ||
+      userSession.username === 'wyumna.eco'
+    );
+  }, [userSession]);
+
   // Check if current user has permission to Edit or Delete a tree
   // Guru Pembina (gareta.eco, wyumna.eco) & Superadmin: can edit/delete all
   // Siswa Kader: can edit/delete trees adopted by their class
   const canManagePlant = useCallback((plant) => {
     if (!userSession) return false;
-    if (userSession.role === 'guru' || userSession.role === 'superadmin' || userSession.isSuperadmin) {
+    if (isGuruOrSuperadmin) {
       return true;
     }
     const currentClass = userSession.className || myClass;
     if (!plant) return true;
     return !plant.responsibleClass || plant.responsibleClass === currentClass;
-  }, [userSession, myClass]);
+  }, [userSession, isGuruOrSuperadmin, myClass]);
 
   const filterCategories = useMemo(() => ['Semua', ...FLORA_CATEGORY_OPTIONS], []);
 
@@ -305,6 +324,7 @@ export default function JelajahPohonView({
   const handleOpenEditModal = (plant) => {
     if (!plant) return;
     setEditingPlant(plant);
+    setEditQuantity(String(plant.quantity || plant.totalQuantity || 1));
     setEditName(plant.name || '');
     setEditScientific(plant.scientificName || plant.latin_name || '');
     setEditCategory(plant.category ? getCategoryMeta(plant.category).label : 'Pohon Pelindung & Peneduh');
@@ -344,6 +364,7 @@ export default function JelajahPohonView({
       const cleanScientific = sanitizeInput(editScientific, 60);
       const cleanLocation = sanitizeInput(editLocation, 60);
       const cleanNotes = sanitizeInput(editNotes, 200);
+      const qtyVal = Math.max(1, parseInt(editQuantity, 10) || 1);
       const finalPhoto = editPhoto || editingPlant.image || editingPlant.image_url || SAMPLE_PLANT_PHOTOS[0].url;
 
       const payload = {
@@ -353,6 +374,8 @@ export default function JelajahPohonView({
         category: editCategory,
         responsibleClass: editClass,
         adopted_by: editClass,
+        quantity: qtyVal,
+        totalQuantity: qtyVal,
         location: cleanLocation || 'Halaman Sekolah',
         co2AbsorptionKgPerYear: absValidation.value,
         co2_absorption: absValidation.value,
@@ -452,6 +475,7 @@ export default function JelajahPohonView({
     const cleanLocation = sanitizeInput(newLocation, 60);
     const cleanNotes = sanitizeInput(newNotes, 160);
     const absorptionVal = absValidation.value;
+    const qtyVal = Math.max(1, parseInt(newQuantity, 10) || 1);
     const newId = `PLN-${Date.now()}`;
     
     // Default eco-friendly description if empty
@@ -482,7 +506,8 @@ export default function JelajahPohonView({
       co2AbsorptionKgPerYear: absorptionVal,
       co2_absorption: absorptionVal,
       location: cleanLocation || 'Halaman Sekolah',
-      totalQuantity: 1,
+      quantity: qtyVal,
+      totalQuantity: qtyVal,
       healthStatus: 'Sangat Sehat',
       waterStatus: 'Sudah Disiram 🌿',
       lastWatered: 'Hari ini, baru didata',
@@ -507,18 +532,19 @@ export default function JelajahPohonView({
       if (setCarbonStats) {
         setCarbonStats(prev => ({
           ...prev,
-          treesCataloged: (prev?.treesCataloged || plantList.length) + 1,
-          totalCo2AbsorptionKgPerYear: (prev?.totalCo2AbsorptionKgPerYear || 5240) + absorptionVal
+          treesCataloged: (prev?.treesCataloged || 0) + qtyVal,
+          totalCo2AbsorptionKgPerYear: (prev?.totalCo2AbsorptionKgPerYear || 5240) + (absorptionVal * qtyVal)
         }));
       }
 
       setShowAddModal(false);
-      setToastMsg(`Yey! Tanaman "${cleanName}" berhasil ditambahkan ke katalog sekolah! 🌱`);
+      setToastMsg(`Yey! Tanaman "${cleanName}" (${qtyVal} tanaman) berhasil ditambahkan ke katalog sekolah! 🌱`);
       setTimeout(() => setToastMsg(null), 4000);
 
       // Reset Form
       setNewName('');
       setNewScientific('');
+      setNewQuantity('1');
       setNewNotes('');
       setNewPhoto('');
       setNewLocation('Halaman Depan');
@@ -595,6 +621,187 @@ export default function JelajahPohonView({
     setTimeout(() => setToastMsg(null), 4000);
   };
 
+  // Unduh Data Inventaris Flora dalam Format PDF Resmi (jsPDF + autoTable)
+  const handleExportPdf = () => {
+    try {
+      const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      const today = new Date().toLocaleDateString('id-ID', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      });
+
+      // Header Banner Hijau Toska / Zamrud
+      doc.setFillColor(13, 148, 136); // #0D9488
+      doc.rect(0, 0, 210, 30, 'F');
+
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(14);
+      doc.text('DATA INVENTARIS FLORA & TANAMAN SEKOLAH', 105, 11, { align: 'center' });
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(11);
+      doc.text('Al Uswah Green — SMPIT Al Uswah Banyuwangi', 105, 18, { align: 'center' });
+
+      doc.setFontSize(8.5);
+      doc.setTextColor(204, 251, 241);
+      doc.text(`Tanggal Cetak: ${today} | Sistem Cerdas Adiwiyata Mandiri`, 105, 24, { align: 'center' });
+
+      // Hitung total populasi
+      let totalPopulasi = 0;
+      const tableBody = plantList.map((plant, index) => {
+        const qty = Number(plant.quantity || plant.totalQuantity || 1);
+        totalPopulasi += qty;
+        return [
+          index + 1,
+          plant.name || '-',
+          plant.scientificName || plant.latin_name || '-',
+          getCategoryMeta(plant.category).label,
+          `${qty} Tanaman`
+        ];
+      });
+
+      autoTable(doc, {
+        startY: 35,
+        head: [['No', 'Nama Pohon / Tanaman', 'Nama Latin / Ilmiah', 'Kategori Flora', 'Jumlah Tanaman']],
+        body: tableBody,
+        foot: [[
+          '',
+          'TOTAL RINGKASAN',
+          `Total Jenis Flora: ${plantList.length} Spesies`,
+          'Total Seluruh Populasi Tanaman',
+          `${totalPopulasi} Tanaman`
+        ]],
+        theme: 'striped',
+        headStyles: {
+          fillColor: [46, 125, 50], // #2E7D32
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+          fontSize: 9,
+          halign: 'center'
+        },
+        footStyles: {
+          fillColor: [13, 148, 136], // Teal
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+          fontSize: 8.5
+        },
+        bodyStyles: {
+          fontSize: 8.5,
+          textColor: [30, 41, 59]
+        },
+        columnStyles: {
+          0: { cellWidth: 12, halign: 'center' },
+          1: { cellWidth: 46, fontStyle: 'bold' },
+          2: { cellWidth: 50, fontStyle: 'italic', textColor: [15, 118, 110] },
+          3: { cellWidth: 48 },
+          4: { cellWidth: 32, halign: 'center', fontStyle: 'bold' }
+        },
+        alternateRowStyles: {
+          fillColor: [248, 250, 252]
+        },
+        margin: { left: 11, right: 11 },
+        didDrawPage: (data) => {
+          const pageCount = doc.internal.getNumberOfPages();
+          doc.setFontSize(8);
+          doc.setTextColor(148, 163, 184);
+          doc.text(
+            `Halaman ${data.pageNumber} dari ${pageCount} — Al Uswah Green (SMPIT Al Uswah Banyuwangi)`,
+            105,
+            290,
+            { align: 'center' }
+          );
+        }
+      });
+
+      doc.save('Inventaris_Flora_SMPIT_Al_Uswah_Banyuwangi.pdf');
+      setToastMsg('Berhasil mengunduh dokumen resmi "Inventaris_Flora_SMPIT_Al_Uswah_Banyuwangi.pdf" 📄✨');
+      setTimeout(() => setToastMsg(null), 4000);
+    } catch (err) {
+      console.error('Export PDF error:', err);
+      setToastMsg(`Gagal membuat PDF: ${err.message}`);
+      setTimeout(() => setToastMsg(null), 4000);
+    }
+  };
+
+  // Unduh Data Inventaris Flora dalam Format Excel / Spreadsheet
+  const handleExportExcel = () => {
+    try {
+      const today = new Date().toLocaleDateString('id-ID', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      });
+
+      let totalPopulasi = 0;
+      const rows = [
+        ['DATA INVENTARIS FLORA & TANAMAN SEKOLAH'],
+        ['Al Uswah Green — SMPIT Al Uswah Banyuwangi'],
+        [`Tanggal Cetak: ${today}`],
+        [],
+        ['No', 'Nama Pohon / Tanaman', 'Nama Latin / Ilmiah', 'Kategori Flora', 'Jumlah Tanaman', 'Kelas Penanggung Jawab', 'Lokasi Tanam', 'Serapan CO2 (kg/thn)']
+      ];
+
+      plantList.forEach((plant, index) => {
+        const qty = Number(plant.quantity || plant.totalQuantity || 1);
+        totalPopulasi += qty;
+        rows.push([
+          index + 1,
+          plant.name || '',
+          plant.scientificName || plant.latin_name || '',
+          getCategoryMeta(plant.category).label,
+          `${qty} Tanaman`,
+          plant.responsibleClass || plant.adopted_by || '-',
+          plant.location || 'Halaman Sekolah',
+          plant.co2AbsorptionKgPerYear || 15
+        ]);
+      });
+
+      // Baris Total di Bawah Tabel
+      rows.push([]);
+      rows.push([
+        '',
+        'TOTAL RINGKASAN',
+        `Total Jenis Flora: ${plantList.length} Spesies`,
+        'Total Seluruh Populasi Tanaman',
+        `${totalPopulasi} Tanaman`,
+        '',
+        '',
+        ''
+      ]);
+
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+
+      ws['!cols'] = [
+        { wch: 6 },
+        { wch: 28 },
+        { wch: 30 },
+        { wch: 32 },
+        { wch: 20 },
+        { wch: 24 },
+        { wch: 26 },
+        { wch: 22 }
+      ];
+
+      XLSX.utils.book_append_sheet(wb, ws, 'Inventaris Flora');
+      XLSX.writeFile(wb, 'Inventaris_Flora_SMPIT_Al_Uswah_Banyuwangi.xlsx');
+
+      setToastMsg('Berhasil mengunduh spreadsheet "Inventaris_Flora_SMPIT_Al_Uswah_Banyuwangi.xlsx" 📊✨');
+      setTimeout(() => setToastMsg(null), 4000);
+    } catch (err) {
+      console.error('Export Excel error:', err);
+      setToastMsg(`Gagal mengekspor Excel: ${err.message}`);
+      setTimeout(() => setToastMsg(null), 4000);
+    }
+  };
+
   return (
     <div className="space-y-6 pb-20 animate-pop">
       
@@ -613,14 +820,43 @@ export default function JelajahPohonView({
           </p>
         </div>
 
-        {/* CTA Tambah Tanaman: Oranye Tropis */}
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="px-4 py-3 bg-gradient-to-r from-[#FF9800] to-[#F57C00] hover:from-[#F57C00] hover:to-[#E65100] text-white rounded-xl text-xs font-black flex items-center justify-center gap-2 shadow-orange transition-all active:scale-95 shrink-0 cursor-pointer"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Tambah Tanaman Baru</span>
-        </button>
+        {/* Action Buttons: Unduh Data (Khusus Guru / Superadmin) & CTA Tambah Tanaman */}
+        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
+          {isGuruOrSuperadmin && (
+            <>
+              {/* Tombol Unduh PDF */}
+              <button
+                type="button"
+                onClick={handleExportPdf}
+                className="px-3.5 py-3 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white text-xs font-black flex items-center justify-center gap-1.5 shadow-sm hover:shadow-md transition-all active:scale-95 cursor-pointer"
+                title="Unduh Data Inventaris Flora (PDF Resmi)"
+              >
+                <FileText className="w-4 h-4" />
+                <span>Unduh PDF</span>
+              </button>
+
+              {/* Tombol Unduh Excel */}
+              <button
+                type="button"
+                onClick={handleExportExcel}
+                className="px-3.5 py-3 rounded-xl bg-white hover:bg-emerald-50 text-emerald-800 border-2 border-emerald-600 hover:border-emerald-700 text-xs font-black flex items-center justify-center gap-1.5 shadow-sm hover:shadow-md transition-all active:scale-95 cursor-pointer"
+                title="Unduh Data Inventaris Flora (Format Excel/Spreadsheet)"
+              >
+                <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                <span>Unduh Excel</span>
+              </button>
+            </>
+          )}
+
+          {/* CTA Tambah Tanaman: Oranye Tropis */}
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="px-4 py-3 bg-gradient-to-r from-[#FF9800] to-[#F57C00] hover:from-[#F57C00] hover:to-[#E65100] text-white rounded-xl text-xs font-black flex items-center justify-center gap-2 shadow-orange transition-all active:scale-95 shrink-0 cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Tambah Tanaman Baru</span>
+          </button>
+        </div>
       </div>
 
       {/* Success Notification Toast */}
@@ -733,10 +969,11 @@ export default function JelajahPohonView({
                     </div>
                   )}
 
-                  {/* Total Quantity Tag */}
+                  {/* Total Quantity Tag on Photo */}
                   <div className="absolute bottom-3 right-3">
-                    <span className="px-2.5 py-1 rounded-xl bg-slate-900/70 backdrop-blur-md text-white text-xs font-extrabold shadow-sm">
-                      {plant.totalQuantity || 1} Pohon
+                    <span className="px-2.5 py-1 rounded-xl bg-slate-900/80 backdrop-blur-md text-white text-xs font-black shadow-sm flex items-center gap-1 border border-white/20">
+                      <span>🌱</span>
+                      <span>{plant.quantity || plant.totalQuantity || 1} Tanaman</span>
                     </span>
                   </div>
                 </div>
@@ -752,11 +989,16 @@ export default function JelajahPohonView({
                     </p>
                   </div>
 
-                  {/* Badges for Responsible Class & Location */}
+                  {/* Badges for Responsible Class, Quantity & Location */}
                   <div className="space-y-1.5 text-xs">
-                    <div className="flex items-center gap-1.5 text-slate-600">
-                      <span className="text-sm">🏫</span>
-                      <span>Asuh: <strong className="text-slate-800">{plant.responsibleClass}</strong></span>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5 text-slate-600 truncate">
+                        <span className="text-sm">🏫</span>
+                        <span className="truncate">Asuh: <strong className="text-slate-800">{plant.responsibleClass}</strong></span>
+                      </div>
+                      <span className="px-2 py-0.5 rounded-md bg-teal-50 border border-teal-200/80 text-[11px] font-black text-teal-800 shrink-0">
+                        🌱 Jumlah: {plant.quantity || plant.totalQuantity || 1} Tanaman
+                      </span>
                     </div>
                     <div className="flex items-center gap-1.5 text-slate-500">
                       <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
@@ -858,6 +1100,9 @@ export default function JelajahPohonView({
                 <span className="px-3 py-1 rounded-full bg-white/95 backdrop-blur-md text-xs font-black text-slate-800 shadow-sm border border-slate-200/60">
                   {getCategoryMeta(selectedPlantForDetail.category).label}
                 </span>
+                <span className="px-2.5 py-1 rounded-full bg-emerald-600 text-white backdrop-blur-md text-xs font-black shadow-sm flex items-center gap-1 border border-emerald-400/40">
+                  🌱 Jumlah: {selectedPlantForDetail.quantity || selectedPlantForDetail.totalQuantity || 1} Tanaman
+                </span>
                 <span className="px-2.5 py-1 rounded-full bg-slate-900/80 backdrop-blur-md text-[11px] font-mono font-bold text-teal-300 border border-teal-400/30">
                   {selectedPlantForDetail.qrCodeId || `ECO-TREE-${selectedPlantForDetail.id}`}
                 </span>
@@ -929,9 +1174,20 @@ export default function JelajahPohonView({
                 </p>
               </div>
 
-              {/* 3 Kotak Metrik Dampak (Grid 3 Kolom Pastel) */}
-              <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
-                {/* 1. Serapan Karbon */}
+              {/* 4 Kotak Metrik Dampak (Grid 4 Kolom Pastel) */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+                {/* 1. Populasi Terdata */}
+                <div className="p-3 bg-teal-50/90 border border-teal-100 rounded-2xl text-center space-y-1">
+                  <span className="text-lg sm:text-xl block">🌱</span>
+                  <div className="font-black text-xs sm:text-sm text-teal-900 truncate">
+                    {selectedPlantForDetail.quantity || selectedPlantForDetail.totalQuantity || 1} Tanaman
+                  </div>
+                  <div className="text-[10px] sm:text-[11px] font-bold text-slate-500">
+                    Jumlah / Populasi
+                  </div>
+                </div>
+
+                {/* 2. Serapan Karbon */}
                 <div className="p-3 bg-emerald-50/80 border border-emerald-100 rounded-2xl text-center space-y-1">
                   <span className="text-lg sm:text-xl block">💨</span>
                   <div className="font-black text-xs sm:text-sm text-[#2E7D32]">
@@ -942,7 +1198,7 @@ export default function JelajahPohonView({
                   </div>
                 </div>
 
-                {/* 2. Kelas Pengadopsi */}
+                {/* 3. Kelas Pengadopsi */}
                 <div className="p-3 bg-teal-50/80 border border-teal-100 rounded-2xl text-center space-y-1">
                   <span className="text-lg sm:text-xl block">🏫</span>
                   <div className="font-black text-xs sm:text-sm text-teal-900 truncate">
@@ -953,7 +1209,7 @@ export default function JelajahPohonView({
                   </div>
                 </div>
 
-                {/* 3. Status Perawatan */}
+                {/* 4. Status Perawatan */}
                 <div className="p-3 bg-cyan-50/80 border border-cyan-100 rounded-2xl text-center space-y-1">
                   <span className="text-lg sm:text-xl block">💧</span>
                   <div className={`font-black text-[10px] sm:text-[11px] rounded-md px-1.5 py-0.5 inline-block ${
@@ -1223,6 +1479,27 @@ export default function JelajahPohonView({
                   </div>
                 </div>
 
+                {/* 4. Jumlah Tanaman / Populasi (Pohon/Pot) */}
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    Jumlah Tanaman / Populasi (Pohon/Pot) *
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min="1"
+                      required
+                      placeholder="Misal: 5"
+                      value={newQuantity}
+                      onChange={(e) => setNewQuantity(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 font-bold text-slate-800 pr-32 focus:outline-none focus:border-[#2E7D32]"
+                    />
+                    <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 pointer-events-none">
+                      Tanaman / Pot
+                    </span>
+                  </div>
+                </div>
+
                 {/* 4. Lokasi & Serapan Karbon */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
@@ -1486,6 +1763,27 @@ export default function JelajahPohonView({
                       placeholder="Pilih Kelas Pengadopsi"
                       buttonClassName="py-2.5 text-xs font-semibold"
                     />
+                  </div>
+                </div>
+
+                {/* 4. Jumlah Tanaman / Populasi (Pohon/Pot) */}
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    Jumlah Tanaman / Populasi (Pohon/Pot) *
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min="1"
+                      required
+                      placeholder="Misal: 5"
+                      value={editQuantity}
+                      onChange={(e) => setEditQuantity(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 font-bold text-slate-800 pr-32 focus:outline-none focus:border-[#2E7D32]"
+                    />
+                    <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 pointer-events-none">
+                      Tanaman / Pot
+                    </span>
                   </div>
                 </div>
 

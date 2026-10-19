@@ -328,6 +328,7 @@ export default function App() {
           <HomeView
             schoolInfo={schoolInfo}
             carbonStats={carbonStats}
+            plantList={plantList}
             myClass={myClass}
             leaderboard={leaderboard}
             setLeaderboard={setLeaderboard}

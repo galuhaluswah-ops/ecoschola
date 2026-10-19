@@ -75,6 +75,7 @@ CREATE TABLE IF NOT EXISTS public.trees (
     co2_absorption_kg_per_year NUMERIC(6,2) DEFAULT 15.0,
     co2_absorption NUMERIC(6,2) DEFAULT 15.0,
     location TEXT DEFAULT 'Halaman Sekolah',
+    quantity INTEGER DEFAULT 1,
     total_quantity INT DEFAULT 1,
     health_status TEXT DEFAULT 'Sangat Sehat',
     water_status TEXT DEFAULT 'Sudah Disiram 🌿',
@@ -99,6 +100,7 @@ ALTER TABLE public.trees ADD COLUMN IF NOT EXISTS adopted_by TEXT;
 ALTER TABLE public.trees ADD COLUMN IF NOT EXISTS co2_absorption NUMERIC(6,2);
 ALTER TABLE public.trees ADD COLUMN IF NOT EXISTS image_url TEXT;
 ALTER TABLE public.trees ADD COLUMN IF NOT EXISTS description TEXT;
+ALTER TABLE public.trees ADD COLUMN IF NOT EXISTS quantity INTEGER DEFAULT 1;
 
 -- D. Tabel Transaksi Setoran Bank Sampah
 CREATE TABLE IF NOT EXISTS public.transactions (
