@@ -246,7 +246,13 @@ export const ecoDataService = {
     }
 
     try {
-      const isOnline = await checkSupabaseConnection();
+      let isOnline = await checkSupabaseConnection();
+      if (!isOnline) {
+        // Quick retry after 600ms in case of initial mobile network cold start
+        await new Promise(r => setTimeout(r, 600));
+        isOnline = await checkSupabaseConnection();
+      }
+
       if (!isOnline) {
         notifySyncStatus('local');
         return null;

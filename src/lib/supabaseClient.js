@@ -11,9 +11,13 @@ const normalizeSupabaseUrl = (url) => {
   return trimmed;
 };
 
-const rawSupabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+// Fallback credentials ensure seamless cloud connectivity on Netlify / static production deployments
+const DEFAULT_SUPABASE_URL = 'https://rwkjarkzlrzqhblfxpel.supabase.co';
+const DEFAULT_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ3a2phcmt6bHJ6cWhibGZ4cGVsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIzMjU2NjgsImV4cCI6MjEwNzkwMTY2OH0.EZQzRy9sgovfKw96sWsYvIaKgpU1Lg4lhgtCL3n31FI';
+
+const rawSupabaseUrl = import.meta.env.VITE_SUPABASE_URL || DEFAULT_SUPABASE_URL;
 const supabaseUrl = normalizeSupabaseUrl(rawSupabaseUrl);
-const supabaseAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim();
+const supabaseAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY || DEFAULT_SUPABASE_ANON_KEY).trim();
 
 // Check if credentials are valid and not default placeholders
 export const isSupabaseConfigured = () => {
