@@ -60,10 +60,17 @@ export default function App() {
   // Smart Hybrid Sync Status State ('cloud' | 'local')
   const [syncStatus, setSyncStatus] = useState(() => ecoDataService.getSyncStatus());
 
-  // Subscribe to EcoDataService hybrid cloud/local sync status & init cloud sync
+  // Subscribe to EcoDataService hybrid cloud/local sync status, init cloud sync & realtime trees
   useEffect(() => {
-    const unsubscribe = ecoDataService.subscribeSyncStatus((status) => {
+    const unsubscribeStatus = ecoDataService.subscribeSyncStatus((status) => {
       setSyncStatus(status);
+    });
+
+    // Realtime Supabase subscription for cross-device tree sync
+    const unsubscribeTrees = ecoDataService.subscribeTrees((payload, freshTrees) => {
+      if (freshTrees) {
+        setPlantList(freshTrees);
+      }
     });
 
     // Auto-initialize hybrid cloud sync on app mount
@@ -78,7 +85,8 @@ export default function App() {
     });
 
     return () => {
-      if (unsubscribe) unsubscribe();
+      if (unsubscribeStatus) unsubscribeStatus();
+      if (unsubscribeTrees) unsubscribeTrees();
     };
   }, []);
 

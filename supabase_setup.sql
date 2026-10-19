@@ -68,9 +68,12 @@ CREATE TABLE IF NOT EXISTS public.trees (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     scientific_name TEXT,
+    latin_name TEXT,
     category TEXT NOT NULL,
     responsible_class TEXT NOT NULL,
+    adopted_by TEXT,
     co2_absorption_kg_per_year NUMERIC(6,2) DEFAULT 15.0,
+    co2_absorption NUMERIC(6,2) DEFAULT 15.0,
     location TEXT DEFAULT 'Halaman Sekolah',
     total_quantity INT DEFAULT 1,
     health_status TEXT DEFAULT 'Sangat Sehat',
@@ -79,12 +82,23 @@ CREATE TABLE IF NOT EXISTS public.trees (
     planted_year INT DEFAULT 2026,
     care_person TEXT,
     notes TEXT,
+    description TEXT,
     tags TEXT[] DEFAULT ARRAY['Adiwiyata'],
     image TEXT,
+    image_url TEXT,
     qr_code_id TEXT UNIQUE,
+    code TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Migrasi Kolom Otomatis (Jika tabel 'trees' sudah dibuat sebelumnya)
+ALTER TABLE public.trees ADD COLUMN IF NOT EXISTS code TEXT;
+ALTER TABLE public.trees ADD COLUMN IF NOT EXISTS latin_name TEXT;
+ALTER TABLE public.trees ADD COLUMN IF NOT EXISTS adopted_by TEXT;
+ALTER TABLE public.trees ADD COLUMN IF NOT EXISTS co2_absorption NUMERIC(6,2);
+ALTER TABLE public.trees ADD COLUMN IF NOT EXISTS image_url TEXT;
+ALTER TABLE public.trees ADD COLUMN IF NOT EXISTS description TEXT;
 
 -- D. Tabel Transaksi Setoran Bank Sampah
 CREATE TABLE IF NOT EXISTS public.transactions (
@@ -152,7 +166,7 @@ CREATE TABLE IF NOT EXISTS public.school_carbon_stats (
 );
 
 -- ============================================================================
--- 3. ROW LEVEL SECURITY (RLS) & PUBLIC DEMO POLICIES
+-- 3. ROW LEVEL SECURITY (RLS) & PUBLIC DEMO POLICIES (FULL ANON INSERT/UPDATE/DELETE)
 -- ============================================================================
 
 ALTER TABLE public.classes ENABLE ROW LEVEL SECURITY;
@@ -165,28 +179,41 @@ ALTER TABLE public.activity_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.school_carbon_stats ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Public full access on classes" ON public.classes;
-CREATE POLICY "Public full access on classes" ON public.classes FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Public full access on classes" ON public.classes FOR ALL TO public, anon, authenticated USING (true) WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Public full access on users" ON public.users;
-CREATE POLICY "Public full access on users" ON public.users FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Public full access on users" ON public.users FOR ALL TO public, anon, authenticated USING (true) WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Public full access on trees" ON public.trees;
-CREATE POLICY "Public full access on trees" ON public.trees FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Public full access on trees" ON public.trees FOR ALL TO public, anon, authenticated USING (true) WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Public full access on transactions" ON public.transactions;
-CREATE POLICY "Public full access on transactions" ON public.transactions FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Public full access on transactions" ON public.transactions FOR ALL TO public, anon, authenticated USING (true) WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Public full access on daily_missions" ON public.daily_missions;
-CREATE POLICY "Public full access on daily_missions" ON public.daily_missions FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Public full access on daily_missions" ON public.daily_missions FOR ALL TO public, anon, authenticated USING (true) WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Public full access on mission_completions" ON public.mission_completions;
-CREATE POLICY "Public full access on mission_completions" ON public.mission_completions FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Public full access on mission_completions" ON public.mission_completions FOR ALL TO public, anon, authenticated USING (true) WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Public full access on activity_logs" ON public.activity_logs;
-CREATE POLICY "Public full access on activity_logs" ON public.activity_logs FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Public full access on activity_logs" ON public.activity_logs FOR ALL TO public, anon, authenticated USING (true) WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Public full access on school_carbon_stats" ON public.school_carbon_stats;
-CREATE POLICY "Public full access on school_carbon_stats" ON public.school_carbon_stats FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Public full access on school_carbon_stats" ON public.school_carbon_stats FOR ALL TO public, anon, authenticated USING (true) WITH CHECK (true);
+
+-- Realtime Replication Publication
+DO $$
+BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.trees;
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
+
+DO $$
+BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.classes;
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
 
 -- ============================================================================
 -- 4. MASTER SEEDING (KONDISI BERSIH 7 KELAS, GURU, SUPERADMIN & MISI)

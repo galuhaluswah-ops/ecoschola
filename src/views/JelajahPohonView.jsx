@@ -23,12 +23,15 @@ import {
   Calendar,
   Eye,
   AlertCircle,
-  Camera
+  AlertTriangle,
+  Camera,
+  Edit3
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import CustomDropdown from '../components/CustomDropdown';
 import { SMP_CLASSES } from '../data/mockData';
 import { sanitizeInput, validateNumericInput } from '../utils/security';
+import ecoDataService from '../services/ecoDataService';
 
 // 4 Preset Thumbnail Foto Tanaman Populer (Opsi B)
 const SAMPLE_PLANT_PHOTOS = [
@@ -78,7 +81,7 @@ export default function JelajahPohonView({
   const [newAbsorption, setNewAbsorption] = useState('15');
   const [newNotes, setNewNotes] = useState('');
   
-  // Photo Upload & Preset States
+  // Photo Upload & Preset States (Add Modal)
   const [photoMode, setPhotoMode] = useState('upload'); // 'upload' | 'sample'
   const [newPhoto, setNewPhoto] = useState('');
   const [uploading, setUploading] = useState(false);
@@ -87,11 +90,46 @@ export default function JelajahPohonView({
   const [isWateringPlant, setIsWateringPlant] = useState(false);
   const fileInputRef = useRef(null);
 
+  // Edit Plant Modal & Form State
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingPlant, setEditingPlant] = useState(null);
+  const [editName, setEditName] = useState('');
+  const [editScientific, setEditScientific] = useState('');
+  const [editCategory, setEditCategory] = useState('Pohon Pelindung');
+  const [editClass, setEditClass] = useState('Kelas 8A');
+  const [editLocation, setEditLocation] = useState('Halaman Depan');
+  const [editAbsorption, setEditAbsorption] = useState('15');
+  const [editNotes, setEditNotes] = useState('');
+  const [editPhoto, setEditPhoto] = useState('');
+  const [editPhotoMode, setEditPhotoMode] = useState('upload');
+  const [editUploading, setEditUploading] = useState(false);
+  const [editUploadError, setEditUploadError] = useState(null);
+  const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
+  const editFileInputRef = useRef(null);
+
+  // Delete Plant Modal State
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletingPlant, setDeletingPlant] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   const [toastMsg, setToastMsg] = useState(null);
+
+  // Auto-fetch fresh plants directly from Supabase Cloud on view mount
+  useEffect(() => {
+    let isMounted = true;
+    ecoDataService.fetchTrees(true).then((freshTrees) => {
+      if (isMounted && freshTrees) {
+        setPlantList(freshTrees);
+      }
+    }).catch(err => {
+      console.warn('[JelajahPohonView] Initial fetchTrees fallback:', err);
+    });
+    return () => { isMounted = false; };
+  }, [setPlantList]);
 
   // Body Scroll Lock when any modal is open
   useEffect(() => {
-    if (showAddModal || activeQrModal || selectedPlantForDetail) {
+    if (showAddModal || activeQrModal || selectedPlantForDetail || showEditModal || showDeleteModal) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = 'unset';
@@ -99,18 +137,37 @@ export default function JelajahPohonView({
     return () => {
       document.body.style.overflow = 'unset';
     };
-  }, [showAddModal, activeQrModal, selectedPlantForDetail]);
+  }, [showAddModal, activeQrModal, selectedPlantForDetail, showEditModal, showDeleteModal]);
+
+  // Check if current user has permission to Edit or Delete a tree
+  // Guru Pembina (gareta.eco, wyumna.eco) & Superadmin: can edit/delete all
+  // Siswa Kader: can edit/delete trees adopted by their class
+  const canManagePlant = useCallback((plant) => {
+    if (!userSession) return false;
+    if (userSession.role === 'guru' || userSession.role === 'superadmin' || userSession.isSuperadmin) {
+      return true;
+    }
+    const currentClass = userSession.className || myClass;
+    if (!plant) return true;
+    return !plant.responsibleClass || plant.responsibleClass === currentClass;
+  }, [userSession, myClass]);
 
   const categories = useMemo(() => ['Semua', 'Pohon Pelindung', 'TOGA', 'Penyerap Radiasi Indoor'], []);
 
   // Filter Plants with useMemo for high performance
   const filteredPlants = useMemo(() => {
     return plantList.filter(plant => {
+      const pName = plant.name || '';
+      const pSci = plant.scientificName || plant.latin_name || '';
+      const pClass = plant.responsibleClass || plant.adopted_by || '';
+      const pLoc = plant.location || '';
+      const query = searchTerm.toLowerCase();
+
       const matchesSearch = 
-        plant.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        plant.scientificName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        plant.responsibleClass.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (plant.location && plant.location.toLowerCase().includes(searchTerm.toLowerCase()));
+        pName.toLowerCase().includes(query) ||
+        pSci.toLowerCase().includes(query) ||
+        pClass.toLowerCase().includes(query) ||
+        pLoc.toLowerCase().includes(query);
 
       const matchesCategory = 
         selectedCategory === 'Semua' || plant.category === selectedCategory;
@@ -183,8 +240,147 @@ export default function JelajahPohonView({
     }
   };
 
-  // Handle Add Plant with real-time sync to carbonStats and live activities
-  const handleAddPlant = (e) => {
+  const handleFileChangeEdit = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setEditUploadError(null);
+    setEditUploading(true);
+    try {
+      const compressed = await compressImageFile(file);
+      setEditPhoto(compressed);
+    } catch (err) {
+      setEditUploadError(err.message || 'Gagal memproses foto gambar.');
+    } finally {
+      setEditUploading(false);
+    }
+  };
+
+  // Open Edit Modal with pre-filled data
+  const handleOpenEditModal = (plant) => {
+    if (!plant) return;
+    setEditingPlant(plant);
+    setEditName(plant.name || '');
+    setEditScientific(plant.scientificName || plant.latin_name || '');
+    setEditCategory(plant.category || 'Pohon Pelindung');
+    setEditClass(plant.responsibleClass || plant.adopted_by || myClass || 'Kelas 8A');
+    setEditLocation(plant.location || 'Halaman Depan');
+    setEditAbsorption(String(plant.co2AbsorptionKgPerYear || plant.co2_absorption || '15'));
+    setEditNotes(plant.notes || plant.description || '');
+    setEditPhoto(plant.image || plant.image_url || '');
+    setEditPhotoMode('upload');
+    setEditUploadError(null);
+    setShowEditModal(true);
+  };
+
+  // Save changes from Edit Modal
+  const handleSaveEditPlant = async (e) => {
+    e.preventDefault();
+    if (isSubmittingEdit || !editingPlant) return;
+
+    const cleanName = sanitizeInput(editName, 50);
+    if (!cleanName) {
+      setEditUploadError('Nama tanaman wajib diisi (maksimal 50 karakter).');
+      return;
+    }
+
+    const absValidation = validateNumericInput(editAbsorption, {
+      min: 0.1,
+      max: 200,
+      fieldName: 'Daya Serap Karbon'
+    });
+    if (!absValidation.isValid) {
+      setEditUploadError(absValidation.error);
+      return;
+    }
+
+    setIsSubmittingEdit(true);
+    try {
+      const cleanScientific = sanitizeInput(editScientific, 60);
+      const cleanLocation = sanitizeInput(editLocation, 60);
+      const cleanNotes = sanitizeInput(editNotes, 200);
+      const finalPhoto = editPhoto || editingPlant.image || editingPlant.image_url || SAMPLE_PLANT_PHOTOS[0].url;
+
+      const payload = {
+        name: cleanName,
+        scientificName: cleanScientific || cleanName,
+        latin_name: cleanScientific || cleanName,
+        category: editCategory,
+        responsibleClass: editClass,
+        adopted_by: editClass,
+        location: cleanLocation || 'Halaman Sekolah',
+        co2AbsorptionKgPerYear: absValidation.value,
+        co2_absorption: absValidation.value,
+        notes: cleanNotes || editingPlant.notes || '',
+        description: cleanNotes || editingPlant.description || '',
+        image: finalPhoto,
+        image_url: finalPhoto
+      };
+
+      const result = await ecoDataService.updateTree(editingPlant.id, payload);
+      if (result && result.allPlants) {
+        setPlantList(result.allPlants);
+      } else {
+        setPlantList(prev => prev.map(p => p.id === editingPlant.id ? { ...p, ...payload } : p));
+      }
+
+      // If Detail Modal is open for this tree, update its view too
+      setSelectedPlantForDetail(prev => prev && prev.id === editingPlant.id ? { ...prev, ...payload } : prev);
+
+      setShowEditModal(false);
+      setToastMsg(`Perubahan data tanaman "${cleanName}" berhasil disimpan! 🌿`);
+      setTimeout(() => setToastMsg(null), 4000);
+    } catch (err) {
+      console.error('Update error:', err);
+      setEditUploadError(err.message || 'Gagal menyimpan perubahan data tanaman.');
+    } finally {
+      setIsSubmittingEdit(false);
+    }
+  };
+
+  // Open Delete Modal
+  const handleOpenDeleteModal = (plant) => {
+    if (!plant) return;
+    setDeletingPlant(plant);
+    setShowDeleteModal(true);
+  };
+
+  // Confirm Delete Handler
+  const handleConfirmDelete = async () => {
+    if (!deletingPlant || isDeleting) return;
+    setIsDeleting(true);
+    try {
+      const targetName = deletingPlant.name;
+      const targetId = deletingPlant.id;
+      const result = await ecoDataService.deleteTree(targetId);
+
+      if (result && result.allPlants) {
+        setPlantList(result.allPlants);
+      } else {
+        setPlantList(prev => prev.filter(p => p.id !== targetId));
+      }
+
+      // Close detail modal if the deleted plant was open
+      if (selectedPlantForDetail?.id === targetId) {
+        setSelectedPlantForDetail(null);
+      }
+      if (activeQrModal?.id === targetId) {
+        setActiveQrModal(null);
+      }
+
+      setShowDeleteModal(false);
+      setToastMsg(`Tanaman "${targetName}" berhasil dihapus dari katalog sekolah.`);
+      setTimeout(() => setToastMsg(null), 4000);
+    } catch (err) {
+      console.error('Delete plant error:', err);
+      setToastMsg(`Gagal menghapus tanaman: ${err.message}`);
+      setTimeout(() => setToastMsg(null), 4000);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  // Handle Add Plant with real-time sync to Supabase, carbonStats and live activities
+  const handleAddPlant = async (e) => {
     e.preventDefault();
     if (isSubmittingPlant) return;
 
@@ -205,15 +401,12 @@ export default function JelajahPohonView({
     }
 
     setIsSubmittingPlant(true);
-    setTimeout(() => {
-      setIsSubmittingPlant(false);
-    }, 1500);
 
     const cleanScientific = sanitizeInput(newScientific, 60);
     const cleanLocation = sanitizeInput(newLocation, 60);
     const cleanNotes = sanitizeInput(newNotes, 160);
     const absorptionVal = absValidation.value;
-    const newId = `PLN-0${plantList.length + 1}`;
+    const newId = `PLN-${Date.now()}`;
     
     // Default eco-friendly description if empty
     const defaultDescriptions = {
@@ -228,58 +421,61 @@ export default function JelajahPohonView({
       id: newId,
       name: cleanName,
       scientificName: cleanScientific || cleanName,
+      latin_name: cleanScientific || cleanName,
       category: newCategory,
       responsibleClass: newClass,
+      adopted_by: newClass,
       co2AbsorptionKgPerYear: absorptionVal,
+      co2_absorption: absorptionVal,
       location: cleanLocation || 'Halaman Sekolah',
       totalQuantity: 1,
       healthStatus: 'Sangat Sehat',
       waterStatus: 'Sudah Disiram 🌿',
       lastWatered: 'Hari ini, baru didata',
       notes: finalNotes,
+      description: finalNotes,
       tags: [newCategory, 'Koleksi Baru', 'Adiwiyata'],
       image: finalPhoto,
-      qrCodeId: `ECO-${cleanName.toUpperCase().replace(/\s+/g, '')}-00${plantList.length + 1}`
+      image_url: finalPhoto,
+      qrCodeId: `ECO-${cleanName.toUpperCase().replace(/\s+/g, '')}-${Date.now().toString().slice(-4)}`
     };
 
-    setPlantList([newPlantObj, ...plantList]);
-    setShowAddModal(false);
+    try {
+      // Sync to Supabase Cloud & Local Storage
+      const result = await ecoDataService.addTree(newPlantObj);
+      if (result && result.allPlants) {
+        setPlantList(result.allPlants);
+      } else {
+        setPlantList([newPlantObj, ...plantList]);
+      }
 
-    // Sync Pohon Terdata to Carbon Stats & Beranda
-    if (setCarbonStats) {
-      setCarbonStats(prev => ({
-        ...prev,
-        treesCataloged: (prev?.treesCataloged || plantList.length) + 1,
-        totalCo2AbsorptionKgPerYear: (prev?.totalCo2AbsorptionKgPerYear || 5240) + absorptionVal
-      }));
+      // Sync Pohon Terdata to Carbon Stats & Beranda
+      if (setCarbonStats) {
+        setCarbonStats(prev => ({
+          ...prev,
+          treesCataloged: (prev?.treesCataloged || plantList.length) + 1,
+          totalCo2AbsorptionKgPerYear: (prev?.totalCo2AbsorptionKgPerYear || 5240) + absorptionVal
+        }));
+      }
+
+      setShowAddModal(false);
+      setToastMsg(`Yey! Tanaman "${cleanName}" berhasil ditambahkan ke katalog sekolah! 🌱`);
+      setTimeout(() => setToastMsg(null), 4000);
+
+      // Reset Form
+      setNewName('');
+      setNewScientific('');
+      setNewNotes('');
+      setNewPhoto('');
+      setNewLocation('Halaman Depan');
+      setNewAbsorption('15');
+      setUploadError(null);
+    } catch (err) {
+      console.error('Add plant error:', err);
+      setUploadError(err.message || 'Gagal menambahkan tanaman.');
+    } finally {
+      setIsSubmittingPlant(false);
     }
-
-    // Sync to Live Recent Activities feed
-    if (onAddRecentActivity) {
-      onAddRecentActivity({
-        id: `ACT-${Date.now()}`,
-        time: 'Baru saja',
-        icon: 'tree',
-        title: `Pohon Baru: ${cleanName}`,
-        actor: `${newClass} (Kader Siswa)`,
-        description: `Menambahkan koleksi tanaman "${cleanName}" (${cleanScientific || cleanName}) di ${cleanLocation || 'Halaman Sekolah'}.`,
-        category: 'Jelajah Pohon',
-        impact: `+${absorptionVal} kg CO₂/thn`,
-        status: 'Selesai'
-      });
-    }
-
-    setToastMsg(`Yey! Tanaman "${cleanName}" berhasil ditambahkan ke katalog sekolah! 🌱`);
-    setTimeout(() => setToastMsg(null), 4000);
-
-    // Reset Form
-    setNewName('');
-    setNewScientific('');
-    setNewNotes('');
-    setNewPhoto('');
-    setNewLocation('Halaman Depan');
-    setNewAbsorption('15');
-    setUploadError(null);
   };
 
   // Handle Water Plant (Catat Sudah Disiram Hari Ini +15 Poin)
@@ -446,6 +642,39 @@ export default function JelajahPohonView({
                     </span>
                   </div>
 
+                  {/* Action Buttons: Sunting (Edit) & Hapus (Delete) */}
+                  {canManagePlant(plant) && (
+                    <div 
+                      className="absolute top-3 right-3 flex items-center gap-1.5 z-10"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenEditModal(plant);
+                        }}
+                        className="px-2.5 py-1 rounded-xl bg-white/95 hover:bg-emerald-50 text-emerald-800 border border-slate-200/80 shadow-md backdrop-blur-md text-[11px] font-black flex items-center gap-1 transition-all active:scale-95 cursor-pointer hover:border-emerald-300"
+                        title="Sunting Data Tanaman"
+                      >
+                        <Edit3 className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>Sunting</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenDeleteModal(plant);
+                        }}
+                        className="p-1.5 sm:px-2 sm:py-1 rounded-xl bg-white/95 hover:bg-red-50 text-red-600 border border-slate-200/80 shadow-md backdrop-blur-md text-[11px] font-black flex items-center gap-1 transition-all active:scale-95 cursor-pointer hover:border-red-300"
+                        title="Hapus Tanaman"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                        <span className="hidden sm:inline">Hapus</span>
+                      </button>
+                    </div>
+                  )}
+
                   {/* Total Quantity Tag */}
                   <div className="absolute bottom-3 right-3">
                     <span className="px-2.5 py-1 rounded-xl bg-slate-900/70 backdrop-blur-md text-white text-xs font-extrabold shadow-sm">
@@ -576,6 +805,36 @@ export default function JelajahPohonView({
                 </span>
               </div>
 
+              {/* Action Buttons Top Right: Edit & Delete */}
+              {canManagePlant(selectedPlantForDetail) && (
+                <div className="absolute top-4 right-14 flex items-center gap-1.5 z-10">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const p = selectedPlantForDetail;
+                      handleOpenEditModal(p);
+                    }}
+                    className="px-2.5 py-1.5 rounded-full bg-white/95 hover:bg-emerald-50 text-emerald-800 text-xs font-black shadow-md border border-slate-200/80 backdrop-blur-md flex items-center gap-1 transition-all active:scale-95 cursor-pointer hover:border-emerald-300"
+                    title="Sunting Data Tanaman"
+                  >
+                    <Edit3 className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Sunting</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const p = selectedPlantForDetail;
+                      handleOpenDeleteModal(p);
+                    }}
+                    className="px-2.5 py-1.5 rounded-full bg-white/95 hover:bg-red-50 text-red-600 text-xs font-black shadow-md border border-slate-200/80 backdrop-blur-md flex items-center gap-1 transition-all active:scale-95 cursor-pointer hover:border-red-300"
+                    title="Hapus Tanaman"
+                  >
+                    <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                    <span>Hapus</span>
+                  </button>
+                </div>
+              )}
+
               {/* Close Button Top Right */}
               <button
                 type="button"
@@ -686,35 +945,65 @@ export default function JelajahPohonView({
             </div>
 
             {/* Footer Modal (Sticky di bawah) */}
-            <div className="p-4 sm:p-5 border-t border-slate-100 bg-slate-50/80 flex flex-col sm:flex-row gap-2.5 shrink-0">
-              {/* Tombol 1: Siram Pohon (+15 Poin) */}
-              <button
-                type="button"
-                disabled={isWateringPlant}
-                onClick={() => handleWaterPlant(selectedPlantForDetail)}
-                className={`flex-1 py-3 px-4 rounded-xl text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-xs transition-all ${
-                  isWateringPlant 
-                    ? 'bg-slate-400 cursor-not-allowed opacity-80' 
-                    : 'bg-gradient-to-r from-[#2E7D32] to-[#388E3C] hover:from-[#1B5E20] hover:to-[#2E7D32] active:scale-95 cursor-pointer'
-                }`}
-              >
-                <Droplets className="w-4 h-4 text-cyan-200" />
-                <span>{isWateringPlant ? 'Mencatat Siram...' : '💧 Catat Sudah Disiram Hari Ini (+15 Poin)'}</span>
-              </button>
+            <div className="p-4 sm:p-5 border-t border-slate-100 bg-slate-50/80 flex flex-col gap-2.5 shrink-0">
+              <div className="flex flex-col sm:flex-row gap-2.5">
+                {/* Tombol 1: Siram Pohon (+15 Poin) */}
+                <button
+                  type="button"
+                  disabled={isWateringPlant}
+                  onClick={() => handleWaterPlant(selectedPlantForDetail)}
+                  className={`flex-1 py-3 px-4 rounded-xl text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-xs transition-all ${
+                    isWateringPlant 
+                      ? 'bg-slate-400 cursor-not-allowed opacity-80' 
+                      : 'bg-gradient-to-r from-[#2E7D32] to-[#388E3C] hover:from-[#1B5E20] hover:to-[#2E7D32] active:scale-95 cursor-pointer'
+                  }`}
+                >
+                  <Droplets className="w-4 h-4 text-cyan-200" />
+                  <span>{isWateringPlant ? 'Mencatat Siram...' : '💧 Catat Sudah Disiram Hari Ini (+15 Poin)'}</span>
+                </button>
 
-              {/* Tombol 2: Lihat & Cetak Plakat QR */}
-              <button
-                type="button"
-                onClick={() => {
-                  const target = selectedPlantForDetail;
-                  setSelectedPlantForDetail(null);
-                  setActiveQrModal(target);
-                }}
-                className="py-3 px-4 rounded-xl bg-gradient-to-r from-[#FF9800] to-[#F57C00] hover:from-[#F57C00] hover:to-[#E65100] text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-orange transition-all active:scale-95 cursor-pointer shrink-0"
-              >
-                <QrCode className="w-4 h-4" />
-                <span>📱 Cetak Plakat QR</span>
-              </button>
+                {/* Tombol 2: Lihat & Cetak Plakat QR */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const target = selectedPlantForDetail;
+                    setSelectedPlantForDetail(null);
+                    setActiveQrModal(target);
+                  }}
+                  className="py-3 px-4 rounded-xl bg-gradient-to-r from-[#FF9800] to-[#F57C00] hover:from-[#F57C00] hover:to-[#E65100] text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-orange transition-all active:scale-95 cursor-pointer shrink-0"
+                >
+                  <QrCode className="w-4 h-4" />
+                  <span>📱 Cetak Plakat QR</span>
+                </button>
+              </div>
+
+              {/* Action Row for Edit and Delete in Footer */}
+              {canManagePlant(selectedPlantForDetail) && (
+                <div className="flex items-center gap-2 pt-1 border-t border-slate-200/70">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const p = selectedPlantForDetail;
+                      handleOpenEditModal(p);
+                    }}
+                    className="flex-1 py-2.5 px-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 font-black text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <Edit3 className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>✏️ Sunting Data Tanaman</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const p = selectedPlantForDetail;
+                      handleOpenDeleteModal(p);
+                    }}
+                    className="py-2.5 px-3 rounded-xl bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 font-black text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                    <span>🗑️ Hapus Tanaman</span>
+                  </button>
+                </div>
+              )}
             </div>
 
           </div>
@@ -1059,6 +1348,331 @@ export default function JelajahPohonView({
                 </button>
               </div>
             </form>
+
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* =======================================================
+          MODAL SUNTING (EDIT) DATA TANAMAN (REACT PORTAL)
+          ======================================================= */}
+      {showEditModal && editingPlant && createPortal(
+        <div className="fixed inset-0 z-[110] w-screen h-screen h-[100dvh] bg-slate-900/50 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
+          <div className="relative bg-white rounded-3xl shadow-2xl border border-teal-100 w-full max-w-lg max-h-[88vh] flex flex-col overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-200">
+            
+            {/* Header Modal */}
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between shrink-0 bg-gradient-to-r from-emerald-50/50 to-teal-50/40">
+              <h3 className="font-black text-base sm:text-lg text-slate-800 flex items-center gap-2">
+                <span className="p-1.5 rounded-xl bg-emerald-100 text-emerald-800 text-sm">✏️</span>
+                <span>Sunting Data Tanaman</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowEditModal(false)}
+                className="p-1.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 cursor-pointer transition-colors"
+                aria-label="Tutup modal sunting"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Form Wrapper */}
+            <form onSubmit={handleSaveEditPlant} className="flex flex-col flex-1 overflow-hidden">
+              
+              {/* Body Form (Scrollable) */}
+              <div className="p-5 overflow-y-auto flex-1 space-y-4 text-xs">
+                
+                {/* 1. Nama Lokal Tanaman */}
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Nama Lokal Tanaman *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Misal: Lidah Mertua, Pohon Mangga"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 font-semibold text-slate-800 focus:outline-none focus:border-[#2E7D32]"
+                  />
+                </div>
+
+                {/* 2. Nama Latin / Ilmiah */}
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Nama Latin (Ilmiah)</label>
+                  <input
+                    type="text"
+                    placeholder="Misal: Sansevieria trifasciata"
+                    value={editScientific}
+                    onChange={(e) => setEditScientific(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 font-semibold text-slate-800 focus:outline-none focus:border-[#2E7D32]"
+                  />
+                </div>
+
+                {/* 3. Kategori Flora & Kelas Pengadopsi */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Kategori Flora</label>
+                    <CustomDropdown
+                      value={editCategory}
+                      onChange={setEditCategory}
+                      options={[
+                        'Pohon Pelindung',
+                        'TOGA',
+                        'Penyerap Radiasi Indoor'
+                      ]}
+                      placeholder="Pilih Kategori"
+                      buttonClassName="py-2.5 text-xs font-semibold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Kelas Pengadopsi</label>
+                    <CustomDropdown
+                      value={editClass}
+                      onChange={setEditClass}
+                      options={SMP_CLASSES}
+                      placeholder="Pilih Kelas Pengadopsi"
+                      buttonClassName="py-2.5 text-xs font-semibold"
+                    />
+                  </div>
+                </div>
+
+                {/* 4. Lokasi & Serapan Karbon */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Lokasi Tanam di Sekolah</label>
+                    <input
+                      type="text"
+                      placeholder="Misal: Samping Musholla, Lapangan Upacara"
+                      value={editLocation}
+                      onChange={(e) => setEditLocation(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 font-semibold text-slate-800 focus:outline-none focus:border-[#2E7D32]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Estimasi Serapan Karbon (kg/thn)</label>
+                    <input
+                      type="number"
+                      step="0.5"
+                      value={editAbsorption}
+                      onChange={(e) => setEditAbsorption(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 font-bold text-slate-800 focus:outline-none focus:border-[#2E7D32]"
+                    />
+                  </div>
+                </div>
+
+                {/* 5. Deskripsi & Manfaat Tanaman */}
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    Deskripsi & Manfaat Ekologis <span className="text-slate-400 font-normal">(Opsional)</span>
+                  </label>
+                  <textarea
+                    rows="2"
+                    placeholder="Misal: Pohon peneduh penyejuk lapangan, menyerap debu, atau khasiat herbal..."
+                    value={editNotes}
+                    onChange={(e) => setEditNotes(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#2E7D32]"
+                  />
+                </div>
+
+                {/* 6. Foto Tanaman (Pratinjau Foto & Opsi Ganti) */}
+                <div className="space-y-2 pt-1 border-t border-slate-100">
+                  <div className="flex items-center justify-between">
+                    <label className="block font-bold text-slate-700">Foto Tanaman</label>
+                    <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
+                      <button
+                        type="button"
+                        onClick={() => setEditPhotoMode('upload')}
+                        className={`px-2.5 py-1 rounded-lg text-[10px] font-black transition-colors cursor-pointer ${
+                          editPhotoMode === 'upload' 
+                            ? 'bg-white text-[#2E7D32] shadow-xs' 
+                            : 'text-slate-500 hover:text-slate-700'
+                        }`}
+                      >
+                        📁 Unggah File
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditPhotoMode('sample')}
+                        className={`px-2.5 py-1 rounded-lg text-[10px] font-black transition-colors cursor-pointer ${
+                          editPhotoMode === 'sample' 
+                            ? 'bg-white text-[#2E7D32] shadow-xs' 
+                            : 'text-slate-500 hover:text-slate-700'
+                        }`}
+                      >
+                        🖼️ Foto Sampel
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Mode Upload */}
+                  {editPhotoMode === 'upload' && (
+                    <div>
+                      <input 
+                        ref={editFileInputRef}
+                        type="file" 
+                        accept="image/*" 
+                        onChange={handleFileChangeEdit} 
+                        className="hidden" 
+                      />
+                      <div 
+                        onClick={() => editFileInputRef.current?.click()}
+                        className="border-2 border-dashed border-teal-200 hover:border-[#2E7D32] bg-teal-50/30 hover:bg-teal-50/60 rounded-2xl p-4 text-center cursor-pointer transition-colors"
+                      >
+                        <UploadCloud className="w-7 h-7 mx-auto text-[#2E7D32] mb-1.5" />
+                        <span className="font-bold text-slate-800 block text-xs">
+                          {editUploading ? 'Sedang mengompresi gambar...' : 'Klik untuk Ganti Foto dari Kamera HP / Galeri'}
+                        </span>
+                        <span className="text-[10px] text-slate-500">
+                          Maks 5MB • Otomatis dikompresi ringan via HTML5 Canvas
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Mode Sampel */}
+                  {editPhotoMode === 'sample' && (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {SAMPLE_PLANT_PHOTOS.map((sample, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => setEditPhoto(sample.url)}
+                          className={`p-1.5 rounded-xl border text-left transition-all cursor-pointer ${
+                            editPhoto === sample.url 
+                              ? 'border-[#2E7D32] ring-2 ring-[#2E7D32]/30 bg-emerald-50' 
+                              : 'border-slate-200 bg-white hover:border-teal-300'
+                          }`}
+                        >
+                          <img src={sample.url} alt={sample.name} loading="lazy" decoding="async" className="w-full h-14 object-cover rounded-lg mb-1" />
+                          <span className="font-bold text-[10px] text-slate-800 block truncate">{sample.name}</span>
+                          <span className="text-[9px] text-slate-500 block truncate">{sample.tag}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Error Alert */}
+                  {editUploadError && (
+                    <div className="p-2.5 rounded-xl bg-red-50 text-red-700 text-[11px] font-bold flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 shrink-0" />
+                      <span>{editUploadError}</span>
+                    </div>
+                  )}
+
+                  {/* Preview Foto */}
+                  {editPhoto && (
+                    <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-2xl flex items-center gap-3 animate-pop">
+                      <img 
+                        src={editPhoto} 
+                        alt="Pratinjau Foto" 
+                        loading="lazy"
+                        decoding="async"
+                        className="w-14 h-14 object-cover rounded-xl border border-slate-200 shrink-0" 
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 text-xs font-black text-[#2E7D32]">
+                          <CheckCircle2 className="w-4 h-4 shrink-0" />
+                          <span>Foto Aktif</span>
+                        </div>
+                        <p className="text-[10px] text-slate-500 truncate">
+                          Foto ini akan digunakan pada katalog dan plakat QR
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setEditPhoto('')}
+                        className="p-1.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 transition-colors cursor-pointer shrink-0"
+                        title="Kosongkan foto"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+              </div>
+
+              {/* Footer Modal */}
+              <div className="p-5 border-t border-slate-100 bg-slate-50/50 flex gap-3 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setShowEditModal(false)}
+                  className="py-3 px-5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs sm:text-sm rounded-xl transition-colors cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingEdit}
+                  className={`flex-1 py-3 px-4 font-black text-xs sm:text-sm rounded-xl shadow-xs transition-all text-white ${
+                    isSubmittingEdit 
+                      ? 'bg-slate-400 cursor-not-allowed opacity-80' 
+                      : 'bg-gradient-to-r from-[#2E7D32] to-[#388E3C] hover:from-[#1B5E20] hover:to-[#2E7D32] active:scale-95 cursor-pointer'
+                  }`}
+                >
+                  {isSubmittingEdit ? 'Menyimpan Perubahan...' : '💾 Simpan Perubahan'}
+                </button>
+              </div>
+            </form>
+
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* =======================================================
+          MODAL KONFIRMASI HAPUS (DELETE) TANAMAN (REACT PORTAL)
+          ======================================================= */}
+      {showDeleteModal && deletingPlant && createPortal(
+        <div className="fixed inset-0 z-[120] w-screen h-screen h-[100dvh] bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
+          <div className="relative bg-white rounded-3xl shadow-2xl border border-red-100 max-w-md w-full p-6 text-center my-auto animate-in zoom-in-95 duration-200 space-y-4">
+            
+            {/* Top Red Badge Icon */}
+            <div className="w-14 h-14 mx-auto rounded-2xl bg-red-100/90 border border-red-200 flex items-center justify-center text-red-600 shadow-xs">
+              <Trash2 className="w-7 h-7" />
+            </div>
+
+            {/* Modal Heading & Warning Text */}
+            <div className="space-y-1.5">
+              <h3 className="text-lg font-black text-slate-800">
+                Hapus Data Tanaman?
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                Hapus Tanaman <strong className="text-slate-900">"{deletingPlant.name}"</strong>? Data tanaman dan plakat QR ini akan dihapus secara permanen.
+              </p>
+            </div>
+
+            {/* Impact Box */}
+            <div className="p-3 bg-red-50/80 border border-red-100 rounded-xl text-[11px] text-red-700 font-semibold flex items-center gap-2 text-left">
+              <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />
+              <span>
+                Data di Supabase Cloud akan dihapus dan 1 pohon terdata pada kelas <strong>{deletingPlant.responsibleClass}</strong> akan dikurangi.
+              </span>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowDeleteModal(false)}
+                className="py-3 px-5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs sm:text-sm transition-colors cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={handleConfirmDelete}
+                className={`flex-1 py-3 px-5 rounded-xl bg-[#EF4444] hover:bg-red-600 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md transition-all active:scale-95 cursor-pointer ${
+                  isDeleting ? 'opacity-70 cursor-not-allowed' : ''
+                }`}
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>{isDeleting ? 'Menghapus...' : 'Ya, Hapus Tanaman'}</span>
+              </button>
+            </div>
 
           </div>
         </div>,

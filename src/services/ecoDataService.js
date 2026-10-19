@@ -137,6 +137,85 @@ const notifySyncStatus = (status) => {
   });
 };
 
+/**
+ * Universal Database-to-Frontend mapper for trees/flora
+ * Supports both snake_case (Supabase) and camelCase (React state)
+ */
+export const mapDbTreeToFrontend = (t) => {
+  if (!t) return null;
+  const id = t.id || `PLN-${Date.now()}`;
+  const sciName = t.scientific_name || t.latin_name || t.scientificName || t.name || '';
+  const respClass = t.responsible_class || t.adopted_by || t.responsibleClass || 'Kelas 8A';
+  const co2 = Number(t.co2_absorption_kg_per_year ?? t.co2_absorption ?? t.co2AbsorptionKgPerYear ?? 15);
+  const code = t.qr_code_id || t.code || t.qrCodeId || `ECO-${id}`;
+  const img = t.image || t.image_url || 'https://images.unsplash.com/photo-1542273917363-3b1817f69a2d?auto=format&fit=crop&w=600&q=80';
+  const desc = t.notes || t.description || '';
+
+  return {
+    id,
+    name: t.name || '',
+    scientificName: sciName,
+    latin_name: sciName,
+    category: t.category || 'Pohon Pelindung',
+    responsibleClass: respClass,
+    adopted_by: respClass,
+    co2AbsorptionKgPerYear: co2,
+    co2_absorption: co2,
+    location: t.location || 'Halaman Sekolah',
+    totalQuantity: Number(t.total_quantity || t.totalQuantity || 1),
+    healthStatus: t.health_status || t.healthStatus || 'Sangat Sehat',
+    waterStatus: t.water_status || t.waterStatus || 'Sudah Disiram 🌿',
+    lastWatered: t.last_watered || t.lastWatered || 'Hari ini',
+    plantedYear: Number(t.planted_year || t.plantedYear || 2026),
+    carePerson: t.care_person || t.carePerson || '',
+    notes: desc,
+    description: desc,
+    tags: Array.isArray(t.tags) ? t.tags : [t.category || 'Adiwiyata'],
+    image: img,
+    image_url: img,
+    qrCodeId: code,
+    code: code,
+    created_at: t.created_at || new Date().toISOString()
+  };
+};
+
+/**
+ * Universal Frontend-to-Database mapper for trees/flora
+ */
+export const mapFrontendTreeToDb = (plant) => {
+  const id = plant.id || `PLN-${Date.now()}`;
+  const scientific = plant.scientificName || plant.latin_name || plant.name || '';
+  const responsibleClass = plant.responsibleClass || plant.adopted_by || 'Kelas 8A';
+  const co2 = Number(plant.co2AbsorptionKgPerYear ?? plant.co2_absorption ?? 15);
+  const img = plant.image || plant.image_url || '';
+  const notes = plant.notes || plant.description || '';
+  const code = plant.qrCodeId || plant.code || `ECO-${id}`;
+
+  return {
+    id,
+    name: plant.name,
+    scientific_name: scientific,
+    category: plant.category || 'Pohon Pelindung',
+    responsible_class: responsibleClass,
+    co2_absorption_kg_per_year: co2,
+    location: plant.location || 'Halaman Sekolah',
+    total_quantity: Number(plant.totalQuantity || 1),
+    health_status: plant.healthStatus || 'Sangat Sehat',
+    water_status: plant.waterStatus || 'Sudah Disiram 🌿',
+    last_watered: plant.lastWatered || 'Hari ini',
+    planted_year: Number(plant.plantedYear || 2026),
+    care_person: plant.carePerson || '',
+    notes: notes,
+    tags: Array.isArray(plant.tags) ? plant.tags : [plant.category || 'Adiwiyata'],
+    image: img,
+    qr_code_id: code
+  };
+};
+
+// Realtime Tree Listeners & Channel
+let treeSubscriptionChannel = null;
+const treeChangeListeners = new Set();
+
 export const ecoDataService = {
   // =========================================================================
   // 0. SMART HYBRID SYNC & HEALTH
@@ -251,26 +330,8 @@ export const ecoDataService = {
       // 2. Fetch Trees
       const { data: dbTrees, error: errTrees } = await supabase.from('trees').select('*').order('created_at', { ascending: false });
       let cloudPlants = null;
-      if (!errTrees && dbTrees && dbTrees.length > 0) {
-        cloudPlants = dbTrees.map(t => ({
-          id: t.id,
-          name: t.name,
-          scientificName: t.scientific_name,
-          category: t.category,
-          responsibleClass: t.responsible_class,
-          co2AbsorptionKgPerYear: Number(t.co2_absorption_kg_per_year || 15),
-          location: t.location,
-          totalQuantity: t.total_quantity || 1,
-          healthStatus: t.health_status || 'Sangat Sehat',
-          waterStatus: t.water_status || 'Sudah Disiram 🌿',
-          lastWatered: t.last_watered || 'Hari ini',
-          plantedYear: t.planted_year || 2022,
-          carePerson: t.care_person || '',
-          notes: t.notes || '',
-          tags: Array.isArray(t.tags) ? t.tags : ['Adiwiyata'],
-          image: t.image || '',
-          qrCodeId: t.qr_code_id || `ECO-${t.id}`
-        }));
+      if (!errTrees && Array.isArray(dbTrees)) {
+        cloudPlants = dbTrees.map(mapDbTreeToFrontend);
         saveToStorage(STORAGE_KEYS.PLANTS, cloudPlants);
       }
 
@@ -736,44 +797,187 @@ export const ecoDataService = {
   },
 
   // =========================================================================
-  // 5. TREES & FLORA CATALOG (JELAJAH POHON)
+  // =========================================================================
+  // 5. TREES & FLORA CATALOG (JELAJAH POHON) - HYBRID CLOUD & REALTIME
   // =========================================================================
 
-  async getPlants() {
-    await simulateNetwork(30);
+  /**
+   * Supabase Realtime Subscription for Trees
+   * When any device inserts, updates, or deletes a tree, all other devices receive the event and refresh instantly.
+   */
+  subscribeTrees(callback) {
+    if (!callback) return () => {};
+    treeChangeListeners.add(callback);
+
+    if (!treeSubscriptionChannel && supabase && isSupabaseConfigured()) {
+      try {
+        treeSubscriptionChannel = supabase
+          .channel('public:trees_realtime')
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'trees' },
+            async (payload) => {
+              console.log('[ecoDataService] Realtime trees event detected:', payload.eventType, payload.new || payload.old);
+              // Always fetch latest state from Supabase to guarantee complete list
+              const freshTrees = await ecoDataService.fetchTrees(true);
+              treeChangeListeners.forEach(listener => {
+                try { listener(payload, freshTrees); } catch (e) {}
+              });
+            }
+          )
+          .subscribe((status) => {
+            console.log('[ecoDataService] Trees Realtime Channel Status:', status);
+          });
+      } catch (err) {
+        console.warn('[ecoDataService] Failed to initialize trees realtime subscription:', err.message);
+      }
+    }
+
+    return () => {
+      treeChangeListeners.delete(callback);
+      if (treeChangeListeners.size === 0 && treeSubscriptionChannel && supabase) {
+        try {
+          supabase.removeChannel(treeSubscriptionChannel);
+        } catch (e) {}
+        treeSubscriptionChannel = null;
+      }
+    };
+  },
+
+  /**
+   * Fetches latest tree catalog.
+   * When online/cloud, ALWAYS queries Supabase first so cross-device updates reflect immediately.
+   */
+  async fetchTrees(forceCloud = true) {
+    if ((forceCloud || currentSyncStatus === 'cloud') && supabase && isSupabaseConfigured()) {
+      try {
+        const { data: dbTrees, error } = await supabase
+          .from('trees')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (!error && Array.isArray(dbTrees)) {
+          const mapped = dbTrees.map(mapDbTreeToFrontend);
+          saveToStorage(STORAGE_KEYS.PLANTS, mapped);
+          return mapped;
+        } else if (error) {
+          console.warn('[ecoDataService] Supabase fetchTrees error:', error.message);
+        }
+      } catch (e) {
+        console.warn('[ecoDataService] fetchTrees exception, fallback to local storage:', e.message);
+      }
+    }
     return loadFromStorage(STORAGE_KEYS.PLANTS, initialPlantList);
   },
 
-  async addPlant(plantData) {
+  async getPlants(forceCloud = false) {
+    return this.fetchTrees(forceCloud);
+  },
+
+  /**
+   * Synchronizes the count of adopted trees for each class to Supabase & local leaderboard
+   */
+  async syncClassTreesCount(affectedClassNames = []) {
+    try {
+      // 1. Gather all current plants
+      let allPlants = loadFromStorage(STORAGE_KEYS.PLANTS, []);
+      if (supabase && currentSyncStatus === 'cloud') {
+        const { data: dbTrees } = await supabase.from('trees').select('responsible_class');
+        if (dbTrees) {
+          allPlants = dbTrees;
+        }
+      }
+
+      const counts = {};
+      allPlants.forEach(p => {
+        const c = p.responsible_class || p.responsibleClass || p.adopted_by;
+        if (c) counts[c] = (counts[c] || 0) + 1;
+      });
+
+      // 2. Update local leaderboard
+      const currentLeaderboard = loadFromStorage(STORAGE_KEYS.LEADERBOARD, classLeaderboard);
+      const updatedLeaderboard = currentLeaderboard.map(cls => {
+        const count = counts[cls.name] || 0;
+        return {
+          ...cls,
+          pohon_adopsi: String(count),
+          trees_adopted: String(count),
+          treesAdopted: String(count)
+        };
+      });
+      saveToStorage(STORAGE_KEYS.LEADERBOARD, updatedLeaderboard);
+
+      // 3. Update Supabase classes table
+      if (supabase && currentSyncStatus === 'cloud') {
+        const classesToSync = affectedClassNames.length > 0
+          ? affectedClassNames
+          : ['Kelas 7A', 'Kelas 7B', 'Kelas 8A', 'Kelas 8B', 'Kelas 8C', 'Kelas 9A', 'Kelas 9B'];
+
+        for (const clsName of classesToSync) {
+          const countStr = String(counts[clsName] || 0);
+          await supabase
+            .from('classes')
+            .update({
+              pohon_adopsi: countStr,
+              trees_adopted: countStr,
+              updated_at: new Date().toISOString()
+            })
+            .eq('name', clsName);
+        }
+      }
+
+      return updatedLeaderboard;
+    } catch (e) {
+      console.warn('[ecoDataService] syncClassTreesCount warning:', e.message);
+    }
+  },
+
+  /**
+   * Add a new tree to the catalog and sync to Supabase
+   */
+  async addTree(plantData) {
     await simulateNetwork(50);
-    const current = await this.getPlants();
-    const absorptionVal = parseFloat(plantData.co2AbsorptionKgPerYear) || 15;
-    const newId = `PLN-0${current.length + 1}`;
-    
+    const current = await this.getPlants(false);
+    const absorptionVal = parseFloat(plantData.co2AbsorptionKgPerYear || plantData.co2_absorption) || 15;
+    const newId = plantData.id || `PLN-${Date.now()}`;
+    const cleanName = plantData.name?.trim() || 'Tanaman Sekolah';
+    const code = plantData.code || plantData.qrCodeId || `ECO-${cleanName.toUpperCase().replace(/\s+/g, '')}-${Date.now().toString().slice(-4)}`;
+
     const newPlant = {
       id: newId,
-      name: plantData.name,
-      scientificName: plantData.scientificName || plantData.name,
+      name: cleanName,
+      scientificName: plantData.scientificName || plantData.latin_name || cleanName,
+      latin_name: plantData.scientificName || plantData.latin_name || cleanName,
       category: plantData.category || 'Pohon Pelindung',
-      responsibleClass: plantData.responsibleClass || 'Kelas 8A',
+      responsibleClass: plantData.responsibleClass || plantData.adopted_by || 'Kelas 8A',
+      adopted_by: plantData.responsibleClass || plantData.adopted_by || 'Kelas 8A',
       co2AbsorptionKgPerYear: absorptionVal,
+      co2_absorption: absorptionVal,
       location: plantData.location || 'Halaman Sekolah',
       totalQuantity: 1,
       healthStatus: 'Sangat Sehat',
       waterStatus: 'Sudah Disiram 🌿',
       lastWatered: 'Hari ini, baru didata',
-      image: plantData.image || 'https://images.unsplash.com/photo-1542273917363-3b1817f69a2d?auto=format&fit=crop&w=600&q=80',
-      qrCodeId: `ECO-${plantData.name.toUpperCase().replace(/\s+/g, '')}-00${current.length + 1}`
+      notes: plantData.notes || plantData.description || 'Koleksi flora Adiwiyata sekolah yang dirawat rutin untuk mendukung pelestarian lingkungan.',
+      description: plantData.notes || plantData.description || 'Koleksi flora Adiwiyata sekolah yang dirawat rutin untuk mendukung pelestarian lingkungan.',
+      image: plantData.image || plantData.image_url || 'https://images.unsplash.com/photo-1542273917363-3b1817f69a2d?auto=format&fit=crop&w=600&q=80',
+      image_url: plantData.image || plantData.image_url || 'https://images.unsplash.com/photo-1542273917363-3b1817f69a2d?auto=format&fit=crop&w=600&q=80',
+      qrCodeId: code,
+      code: code,
+      tags: [plantData.category || 'Adiwiyata', 'Koleksi Baru', 'Adiwiyata'],
+      created_at: new Date().toISOString()
     };
 
     const updated = [newPlant, ...current];
     saveToStorage(STORAGE_KEYS.PLANTS, updated);
 
+    // Update carbon stats
     await this.incrementCarbonStats({
       treesCataloged: 1,
       totalCo2AbsorptionKgPerYear: absorptionVal
     });
 
+    // Add activity log
     await this.addActivityLog({
       id: `ACT-${Date.now()}`,
       time: 'Baru saja',
@@ -786,31 +990,173 @@ export const ecoDataService = {
       status: 'Selesai'
     });
 
-    // Sync to Supabase in Background
+    // Sync to Supabase Cloud
     if (supabase && currentSyncStatus === 'cloud') {
-      supabase
-        .from('trees')
-        .insert([{
-          id: newId,
-          name: newPlant.name,
-          scientific_name: newPlant.scientificName,
-          category: newPlant.category,
-          responsible_class: newPlant.responsibleClass,
-          co2_absorption_kg_per_year: absorptionVal,
-          location: newPlant.location,
-          total_quantity: 1,
-          health_status: newPlant.healthStatus,
-          water_status: newPlant.waterStatus,
-          last_watered: newPlant.lastWatered,
-          image: newPlant.image,
-          qr_code_id: newPlant.qrCodeId
-        }])
-        .then(({ error }) => {
-          if (error) console.warn('[Supabase addPlant error]:', error.message);
-        });
+      const dbPayload = mapFrontendTreeToDb(newPlant);
+      const { error: insErr } = await supabase.from('trees').insert([dbPayload]);
+      if (insErr) {
+        console.warn('[Supabase addTree error]:', insErr.message);
+      }
+      await this.syncClassTreesCount([newPlant.responsibleClass]);
+    } else {
+      await this.syncClassTreesCount([newPlant.responsibleClass]);
     }
 
     return { plant: newPlant, allPlants: updated };
+  },
+
+  async addPlant(plantData) {
+    return this.addTree(plantData);
+  },
+
+  /**
+   * Update an existing tree in Supabase & LocalStorage
+   */
+  async updateTree(treeId, updatedData) {
+    await simulateNetwork(50);
+    const current = await this.getPlants(false);
+    const existingIndex = current.findIndex(p => p.id === treeId);
+    if (existingIndex === -1) {
+      throw new Error(`Tanaman dengan ID ${treeId} tidak ditemukan.`);
+    }
+
+    const oldPlant = current[existingIndex];
+    const oldClass = oldPlant.responsibleClass;
+    const newClass = updatedData.responsibleClass || updatedData.adopted_by || oldClass;
+    const oldCo2 = Number(oldPlant.co2AbsorptionKgPerYear || 15);
+    const newCo2 = Number(updatedData.co2AbsorptionKgPerYear ?? updatedData.co2_absorption ?? oldCo2);
+
+    const updatedPlant = {
+      ...oldPlant,
+      ...updatedData,
+      id: treeId,
+      name: updatedData.name || oldPlant.name,
+      scientificName: updatedData.scientificName || updatedData.latin_name || oldPlant.scientificName,
+      latin_name: updatedData.scientificName || updatedData.latin_name || oldPlant.latin_name,
+      category: updatedData.category || oldPlant.category,
+      responsibleClass: newClass,
+      adopted_by: newClass,
+      co2AbsorptionKgPerYear: newCo2,
+      co2_absorption: newCo2,
+      location: updatedData.location || oldPlant.location,
+      notes: updatedData.notes || updatedData.description || oldPlant.notes,
+      description: updatedData.notes || updatedData.description || oldPlant.description,
+      image: updatedData.image || updatedData.image_url || oldPlant.image,
+      image_url: updatedData.image || updatedData.image_url || oldPlant.image_url,
+      updated_at: new Date().toISOString()
+    };
+
+    const updatedList = [...current];
+    updatedList[existingIndex] = updatedPlant;
+    saveToStorage(STORAGE_KEYS.PLANTS, updatedList);
+
+    // Update carbon stats delta if CO2 absorption changed
+    const co2Delta = newCo2 - oldCo2;
+    if (co2Delta !== 0) {
+      await this.incrementCarbonStats({
+        totalCo2AbsorptionKgPerYear: co2Delta
+      });
+    }
+
+    // Add activity log
+    await this.addActivityLog({
+      id: `ACT-${Date.now()}`,
+      time: 'Baru saja',
+      icon: 'sparkles',
+      title: `Sunting Tanaman: ${updatedPlant.name}`,
+      actor: `${newClass} (Kader Siswa)`,
+      description: `Memperbarui data tanaman "${updatedPlant.name}" (${updatedPlant.scientificName}) di ${updatedPlant.location}.`,
+      category: 'Jelajah Pohon',
+      impact: `${newCo2} kg CO₂/thn`,
+      status: 'Selesai'
+    });
+
+    // Sync to Supabase Cloud
+    if (supabase && currentSyncStatus === 'cloud') {
+      const dbPayload = mapFrontendTreeToDb(updatedPlant);
+      delete dbPayload.created_at;
+      dbPayload.updated_at = new Date().toISOString();
+
+      const { error: updErr } = await supabase
+        .from('trees')
+        .update(dbPayload)
+        .eq('id', treeId);
+
+      if (updErr) {
+        console.warn('[Supabase updateTree error]:', updErr.message);
+      }
+
+      const affected = oldClass !== newClass ? [oldClass, newClass] : [newClass];
+      await this.syncClassTreesCount(affected);
+    } else {
+      const affected = oldClass !== newClass ? [oldClass, newClass] : [newClass];
+      await this.syncClassTreesCount(affected);
+    }
+
+    return { plant: updatedPlant, allPlants: updatedList };
+  },
+
+  async updatePlant(treeId, updatedData) {
+    return this.updateTree(treeId, updatedData);
+  },
+
+  /**
+   * Delete a tree from Supabase & LocalStorage
+   */
+  async deleteTree(treeId) {
+    await simulateNetwork(50);
+    const current = await this.getPlants(false);
+    const target = current.find(p => p.id === treeId);
+    if (!target) {
+      return { success: false, allPlants: current };
+    }
+
+    const updatedList = current.filter(p => p.id !== treeId);
+    saveToStorage(STORAGE_KEYS.PLANTS, updatedList);
+
+    const targetClass = target.responsibleClass || target.adopted_by;
+    const co2 = Number(target.co2AbsorptionKgPerYear || target.co2_absorption || 15);
+
+    // Decrement carbon stats
+    await this.incrementCarbonStats({
+      treesCataloged: -1,
+      totalCo2AbsorptionKgPerYear: -co2
+    });
+
+    // Add activity log
+    await this.addActivityLog({
+      id: `ACT-${Date.now()}`,
+      time: 'Baru saja',
+      icon: 'trash',
+      title: `Hapus Tanaman: ${target.name}`,
+      actor: `${targetClass || 'Sekolah'} (Kader Siswa)`,
+      description: `Menghapus tanaman "${target.name}" dari katalog pohon sekolah.`,
+      category: 'Jelajah Pohon',
+      impact: `-${co2} kg CO₂/thn`,
+      status: 'Selesai'
+    });
+
+    // Sync to Supabase Cloud
+    if (supabase && currentSyncStatus === 'cloud') {
+      const { error: delErr } = await supabase
+        .from('trees')
+        .delete()
+        .eq('id', treeId);
+
+      if (delErr) {
+        console.warn('[Supabase deleteTree error]:', delErr.message);
+      }
+
+      await this.syncClassTreesCount([targetClass]);
+    } else {
+      await this.syncClassTreesCount([targetClass]);
+    }
+
+    return { success: true, allPlants: updatedList };
+  },
+
+  async deletePlant(treeId) {
+    return this.deleteTree(treeId);
   },
 
   // =========================================================================
