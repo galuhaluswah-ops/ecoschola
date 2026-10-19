@@ -1,5 +1,5 @@
 /**
- * EcoSchola Data Service Layer (Smart Hybrid Cloud & LocalStorage Architecture)
+ * Al Uswah Green Data Service Layer (Smart Hybrid Cloud & LocalStorage Architecture)
  * Supports Supabase PostgreSQL Cloud with seamless LocalStorage offline fallback.
  */
 

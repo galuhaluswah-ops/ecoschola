@@ -748,7 +748,7 @@ export default function JelajahPohonView({
             {/* QR Code Container (Crisp & Scannable) */}
             <div className="p-5 bg-[#E8F5E9] rounded-2xl border border-[#C8E6C9] inline-block shadow-inner">
               <QRCodeSVG
-                value={`https://ecoschola.sch.id/flora/${activeQrModal.id}`}
+                value={`https://aluswahgreen.sch.id/flora/${activeQrModal.id}`}
                 size={170}
                 bgColor="#E8F5E9"
                 fgColor="#1B5E20"

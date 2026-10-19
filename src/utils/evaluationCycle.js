@@ -1,5 +1,5 @@
 /**
- * 5-Day Championship Evaluation Cycle Engine (EcoSchola Production)
+ * 5-Day Championship Evaluation Cycle Engine (Al Uswah Green Production)
  * 
  * Mengatur siklus evaluasi mingguan/5-harian:
  * 1. Default / 0 Poin: Menampilkan status netral & memotivasi "🌱 Pejuang Aktif • Siklus Evaluasi 5 Hari"

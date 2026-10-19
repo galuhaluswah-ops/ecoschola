@@ -89,14 +89,11 @@ export default function Navbar({
           <div>
             <div className="flex items-center gap-1.5">
               <span className="font-black text-base sm:text-lg text-slate-800 tracking-tight">
-                EcoSchola
-              </span>
-              <span className="px-2 py-0.5 rounded-full bg-[#E0F2F1] text-[#2E7D32] font-extrabold text-xs border border-[#B2DFDB]">
-                SMP
+                Al Uswah Green
               </span>
             </div>
-            <p className="text-xs text-slate-500 font-medium hidden sm:block">
-              {schoolInfo?.name || 'SMPN 1 Adiwiyata Nusantara'}
+            <p className="text-[11px] sm:text-xs text-slate-500 font-medium block leading-tight">
+              {schoolInfo?.name || 'SMPIT Al Uswah Banyuwangi'}
             </p>
           </div>
         </div>
@@ -152,7 +149,7 @@ export default function Navbar({
             type="button"
             onClick={onShareApp}
             className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer shadow-xs"
-            title="Bagikan Tautan Aplikasi EcoSchola"
+            title="Bagikan Tautan Aplikasi Al Uswah Green"
           >
             <Share2 className="w-3.5 h-3.5 text-[#0D9488]" />
             <span className="hidden sm:inline">Bagikan</span>
@@ -164,7 +161,7 @@ export default function Navbar({
               type="button"
               onClick={onInstallPwa}
               className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#FF9800] to-[#F57C00] hover:from-[#F57C00] hover:to-[#E65100] text-white text-xs font-black flex items-center gap-1.5 transition-all shadow-orange active:scale-95 cursor-pointer animate-pulse hover:animate-none"
-              title="Pasang EcoSchola di Layar Utama HP"
+              title="Pasang Al Uswah Green di Layar Utama HP"
             >
               <Download className="w-3.5 h-3.5" />
               <span className="hidden md:inline">Pasang Aplikasi</span>

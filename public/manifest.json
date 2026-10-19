@@ -1,7 +1,7 @@
 {
-  "name": "EcoSchola - Smart Adiwiyata SMP",
-  "short_name": "EcoSchola",
-  "description": "Smart Adiwiyata & School Carbon Tracker - Monitoring Jejak Karbon, Konservasi Tanaman, Bank Sampah, dan Audit Sekolah Hijau",
+  "name": "Al Uswah Green - SMPIT Al Uswah Banyuwangi",
+  "short_name": "Al Uswah Green",
+  "description": "Smart Adiwiyata & School Carbon Tracker - Monitoring Jejak Karbon, Konservasi Tanaman, Bank Sampah, dan Audit Sekolah Hijau SMPIT Al Uswah Banyuwangi",
   "start_url": "/?source=pwa",
   "scope": "/",
   "display": "standalone",

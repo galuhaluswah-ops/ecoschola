@@ -164,7 +164,7 @@ export default function LoginModal({
 
           <div>
             <h2 className="text-xl font-black text-slate-800 tracking-tight">
-              Masuk Akun EcoSchola 🍃
+              Masuk Akun Al Uswah Green 🍃
             </h2>
             <p className="text-xs text-slate-500 max-w-xs mx-auto mt-0.5">
               Kelola jejak karbon, bank sampah digital, dan aksi Adiwiyata sekolahmu.
@@ -333,7 +333,7 @@ export default function LoginModal({
                 type="button"
                 onClick={onOpenInstall}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#E0F7FA] hover:bg-[#B2DFDB] text-[#00695C] transition-all cursor-pointer active:scale-95 shadow-xs"
-                title="Pasang EcoSchola di Layar Utama HP"
+                title="Pasang Al Uswah Green di Layar Utama HP"
               >
                 <span>📲</span>
                 <span>Pasang di HP</span>
@@ -344,7 +344,7 @@ export default function LoginModal({
               type="button"
               onClick={onOpenShare}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all cursor-pointer active:scale-95"
-              title="Bagikan Tautan EcoSchola"
+              title="Bagikan Tautan Al Uswah Green"
             >
               <span>🔗</span>
               <span>Bagikan Aplikasi</span>
@@ -354,7 +354,7 @@ export default function LoginModal({
 
       </div>
 
-      {/* Bottom Sheet / Pop-up Card "📲 Pasang Aplikasi EcoSchola" untuk Pengguna HP */}
+      {/* Bottom Sheet / Pop-up Card "📲 Pasang Aplikasi Al Uswah Green" untuk Pengguna HP */}
       {showMobileBanner && !isPwaInstalled && (
         <div className="fixed bottom-3 inset-x-3 sm:inset-x-auto sm:right-6 sm:bottom-6 max-w-sm mx-auto z-40 bg-white/95 backdrop-blur-md border border-[#80CBC4] rounded-2xl p-3.5 shadow-2xl flex items-center justify-between gap-3 animate-pop">
           <div className="flex items-center gap-2.5 min-w-0">
@@ -362,7 +362,7 @@ export default function LoginModal({
               📲
             </div>
             <div className="min-w-0">
-              <h4 className="text-xs font-black text-slate-800 truncate">Pasang Aplikasi EcoSchola</h4>
+              <h4 className="text-xs font-black text-slate-800 truncate">Pasang Aplikasi Al Uswah Green</h4>
               <p className="text-[10px] text-slate-500 truncate">Akses layar penuh & hemat kuota di HP</p>
             </div>
           </div>

@@ -1,5 +1,5 @@
 /**
- * EcoSchola PWA Utility & Smart Installer Helpers
+ * Al Uswah Green PWA Utility & Smart Installer Helpers
  */
 
 export const isStandaloneMode = () => {
@@ -36,8 +36,8 @@ export const getInstallUrl = () => {
 export const shareAppInvite = async () => {
   const url = getInstallUrl();
   const shareData = {
-    title: 'EcoSchola - Smart Adiwiyata SMP',
-    text: 'Yuk pasang aplikasi EcoSchola SMP di HP kamu! Klik link ini untuk menginstal:',
+    title: 'Al Uswah Green - SMPIT Al Uswah Banyuwangi',
+    text: 'Yuk pasang aplikasi Al Uswah Green di HP kamu! Klik link ini untuk menginstal:',
     url: url
   };
 

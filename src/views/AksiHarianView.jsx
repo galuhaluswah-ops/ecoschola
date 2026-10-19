@@ -238,7 +238,7 @@ export default function AksiHarianView({
       type: 'setor',
       title: 'Setoran Sampah Berhasil! 🎉',
       targetClass: setorClass,
-      subtitle: `Setoran sampah dari ${setorClass} telah berhasil tercatat di Bank Sampah Digital EcoSchola.`,
+      subtitle: `Setoran sampah dari ${setorClass} telah berhasil tercatat di Bank Sampah Digital Al Uswah Green.`,
       weightText: `${validWeight} Kg ${currentWaste.name}`,
       co2Text: `-${finalCo2} CO2e`,
       pointsGained: `+${finalPoints} Poin Juara`
@@ -317,7 +317,7 @@ export default function AksiHarianView({
       type: 'audit',
       title: 'Nilai Berhasil Terkirim! 🎉',
       targetClass: auditClass,
-      subtitle: `Data audit kebersihan dan hemat energi untuk ${auditClass} telah berhasil disimpan ke sistem EcoSchola.`,
+      subtitle: `Data audit kebersihan dan hemat energi untuk ${auditClass} telah berhasil disimpan ke sistem Al Uswah Green.`,
       score: `${finalAuditScore} / 100`,
       predicate: finalAuditScore >= 90 ? '⭐⭐⭐⭐⭐ Sangat Rapi' : finalAuditScore >= 75 ? '⭐⭐⭐⭐ Baik' : '⭐⭐ Perlu Ditingkatkan',
       pointsGained: `+${pointsGained} Poin Juara`,

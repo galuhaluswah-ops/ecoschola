@@ -1,5 +1,5 @@
 /**
- * EcoSchola Application Security Utilities (AppSec)
+ * Al Uswah Green Application Security Utilities (AppSec)
  * - XSS Sanitization & Input Length Limits
  * - Strict Numeric & Weight Validation
  * - Session Integrity & Role Verification

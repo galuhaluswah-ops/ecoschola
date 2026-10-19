@@ -1,5 +1,5 @@
-// EcoSchola Service Worker - Smart Adiwiyata & School Carbon Tracker
-const CACHE_NAME = 'ecoschola-v1.0.0';
+// Al Uswah Green Service Worker - Smart Adiwiyata & School Carbon Tracker
+const CACHE_NAME = 'aluswahgreen-v1.0.0';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -10,9 +10,9 @@ const ASSETS_TO_CACHE = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[EcoSchola SW] Pre-caching offline shell');
+      console.log('[Al Uswah Green SW] Pre-caching offline shell');
       return cache.addAll(ASSETS_TO_CACHE).catch(err => {
-        console.warn('[EcoSchola SW] Pre-cache non-blocking warning:', err);
+        console.warn('[Al Uswah Green SW] Pre-cache non-blocking warning:', err);
       });
     })
   );
@@ -25,7 +25,7 @@ self.addEventListener('activate', (event) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
           if (cacheName !== CACHE_NAME) {
-            console.log('[EcoSchola SW] Removing old cache:', cacheName);
+            console.log('[Al Uswah Green SW] Removing old cache:', cacheName);
             return caches.delete(cacheName);
           }
         })

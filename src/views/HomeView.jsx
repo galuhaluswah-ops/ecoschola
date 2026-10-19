@@ -233,7 +233,7 @@ export default function HomeView({
               <span>
                 {isGuru 
                   ? `👨‍🏫 Mode Pembina: ${userSession?.userName || 'Guru Adiwiyata'}`
-                  : `Kader Adiwiyata Remaja • ${schoolInfo?.name || 'SMPN 1 Adiwiyata Nusantara'}`
+                  : `Kader Adiwiyata Remaja • ${schoolInfo?.name || 'SMPIT Al Uswah Banyuwangi'}`
                 }
               </span>
             </div>
@@ -244,7 +244,7 @@ export default function HomeView({
                 <span>
                   {isGuru 
                     ? (userSession?.role === 'superadmin' 
-                        ? 'Halo, Superadmin EcoSchola! 🌿' 
+                        ? 'Halo, Superadmin Al Uswah Green! 🌿' 
                         : `Halo, ${userSession?.userName || 'Pembina Gareta'}! 🌿`)
                     : 'Halo, Pejuang Bumi!'}
                 </span>

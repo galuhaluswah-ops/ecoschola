@@ -1,9 +1,9 @@
-// Mock Data for EcoSchola - Smart Adiwiyata & School Carbon Tracker (SMP Edition)
+// Mock Data for Al Uswah Green - Smart Adiwiyata & School Carbon Tracker (SMPIT Al Uswah Banyuwangi)
 
 export const initialSchoolInfo = {
-  name: "SMP Negeri 1 Adiwiyata Nusantara",
+  name: "SMPIT Al Uswah Banyuwangi",
   npsn: "20108921",
-  district: "Semarang, Jawa Tengah",
+  district: "Banyuwangi, Jawa Timur",
   status: "Sekolah Adiwiyata Mandiri",
   year: "2026/2027",
   greenScore: 95.2,
@@ -540,9 +540,9 @@ export const OFFICIAL_GURU_ACCOUNTS = [
     alternatePassword: "admin123",
     name: "Superadmin",
     teacherName: "Superadmin",
-    userName: "Superadmin EcoSchola",
+    userName: "Superadmin Al Uswah Green",
     role: "superadmin",
-    title: "Superadmin EcoSchola",
+    title: "Superadmin Al Uswah Green",
     avatar: "🛡️"
   }
 ];

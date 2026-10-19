@@ -99,7 +99,7 @@ export default function PwaInstallModal({
               PWA SMART INSTALLER
             </span>
             <h3 className="text-base sm:text-lg font-black text-slate-800 tracking-tight">
-              {activeTab === 'share' ? 'Bagikan Aplikasi EcoSchola' : 'Pasang EcoSchola di HP'}
+              {activeTab === 'share' ? 'Bagikan Aplikasi Al Uswah Green' : 'Pasang Al Uswah Green di HP'}
             </h3>
           </div>
         </div>
@@ -135,7 +135,7 @@ export default function PwaInstallModal({
         {activeTab === 'install' ? (
           <div>
             <p className="text-xs text-slate-600 mb-3.5 leading-relaxed">
-              Pasang aplikasi EcoSchola langsung di layar utama HP kamu agar tampil <strong>layar penuh (tanpa bilah browser)</strong>, hemat kuota, dan secepat aplikasi bawaan!
+              Pasang aplikasi Al Uswah Green langsung di layar utama HP kamu agar tampil <strong>layar penuh (tanpa bilah browser)</strong>, hemat kuota, dan secepat aplikasi bawaan!
             </p>
 
             {/* Keunggulan PWA */}
@@ -229,7 +229,7 @@ export default function PwaInstallModal({
           /* TAB BAGIKAN / SHARE LINK & QR */
           <div className="space-y-3.5">
             <p className="text-xs text-slate-600 leading-relaxed">
-              Bagikan link instalasi aplikasi ini ke WhatsApp, grup kelas, atau rekan guru agar mereka bisa langsung memasang EcoSchola di HP masing-masing!
+              Bagikan link instalasi aplikasi ini ke WhatsApp, grup kelas, atau rekan guru agar mereka bisa langsung memasang Al Uswah Green di HP masing-masing!
             </p>
 
             {/* QR Code Container */}
