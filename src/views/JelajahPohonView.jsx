@@ -25,13 +25,56 @@ import {
   AlertCircle,
   AlertTriangle,
   Camera,
-  Edit3
+  Edit3,
+  Pencil
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import CustomDropdown from '../components/CustomDropdown';
 import { SMP_CLASSES } from '../data/mockData';
 import { sanitizeInput, validateNumericInput } from '../utils/security';
 import ecoDataService from '../services/ecoDataService';
+
+// 8 Pilihan Lengkap Kategori Flora Sekolah
+export const FLORA_CATEGORY_OPTIONS = [
+  'Pohon Pelindung & Peneduh',
+  'Tanaman Bunga & Estetika',
+  'Tanaman Hias & Daun',
+  'TOGA (Tanaman Obat Keluarga)',
+  'Tanaman Buah & Produktif',
+  'Sayuran & Hidroponik',
+  'Penyerap Polusi & Radiasi Indoor',
+  'Tanaman Gantung & Merambat'
+];
+
+export const getCategoryMeta = (cat) => {
+  if (!cat) return { label: 'Pohon Pelindung & Peneduh', shortLabel: '🌳 Peneduh', badge: '🌳 Peneduh', icon: '🌳' };
+  const str = String(cat).toLowerCase();
+  if (str.includes('pelindung') || str.includes('peneduh')) {
+    return { label: 'Pohon Pelindung & Peneduh', shortLabel: '🌳 Peneduh', badge: '🌳 Peneduh', icon: '🌳' };
+  }
+  if (str.includes('bunga') || str.includes('estetika')) {
+    return { label: 'Tanaman Bunga & Estetika', shortLabel: '🌸 Bunga', badge: '🌸 Bunga', icon: '🌸' };
+  }
+  if (str.includes('hias') || str.includes('daun')) {
+    return { label: 'Tanaman Hias & Daun', shortLabel: '🪴 Hias Daun', badge: '🪴 Hias Daun', icon: '🪴' };
+  }
+  if (str.includes('toga') || str.includes('obat')) {
+    return { label: 'TOGA (Tanaman Obat Keluarga)', shortLabel: '🌿 TOGA', badge: '🌿 TOGA', icon: '🌿' };
+  }
+  if (str.includes('buah') || str.includes('produktif')) {
+    return { label: 'Tanaman Buah & Produktif', shortLabel: '🍊 Buah', badge: '🍊 Buah', icon: '🍊' };
+  }
+  if (str.includes('sayur') || str.includes('hidroponik')) {
+    return { label: 'Sayuran & Hidroponik', shortLabel: '🥬 Sayuran', badge: '🥬 Sayuran', icon: '🥬' };
+  }
+  if (str.includes('polusi') || str.includes('radiasi')) {
+    return { label: 'Penyerap Polusi & Radiasi Indoor', shortLabel: '🛡️ Anti Polusi', badge: '🛡️ Anti Polusi', icon: '🛡️' };
+  }
+  if (str.includes('gantung') || str.includes('merambat')) {
+    return { label: 'Tanaman Gantung & Merambat', shortLabel: '🌱 Gantung', badge: '🌱 Gantung', icon: '🌱' };
+  }
+  return { label: cat, shortLabel: cat, badge: cat, icon: '🌿' };
+};
 
 // 4 Preset Thumbnail Foto Tanaman Populer (Opsi B)
 const SAMPLE_PLANT_PHOTOS = [
@@ -75,7 +118,7 @@ export default function JelajahPohonView({
   // New Plant Form State
   const [newName, setNewName] = useState('');
   const [newScientific, setNewScientific] = useState('');
-  const [newCategory, setNewCategory] = useState('Pohon Pelindung');
+  const [newCategory, setNewCategory] = useState('Pohon Pelindung & Peneduh');
   const [newClass, setNewClass] = useState(myClass || userSession?.className || 'Kelas 8A');
   const [newLocation, setNewLocation] = useState('Halaman Depan');
   const [newAbsorption, setNewAbsorption] = useState('15');
@@ -95,7 +138,7 @@ export default function JelajahPohonView({
   const [editingPlant, setEditingPlant] = useState(null);
   const [editName, setEditName] = useState('');
   const [editScientific, setEditScientific] = useState('');
-  const [editCategory, setEditCategory] = useState('Pohon Pelindung');
+  const [editCategory, setEditCategory] = useState('Pohon Pelindung & Peneduh');
   const [editClass, setEditClass] = useState('Kelas 8A');
   const [editLocation, setEditLocation] = useState('Halaman Depan');
   const [editAbsorption, setEditAbsorption] = useState('15');
@@ -152,7 +195,7 @@ export default function JelajahPohonView({
     return !plant.responsibleClass || plant.responsibleClass === currentClass;
   }, [userSession, myClass]);
 
-  const categories = useMemo(() => ['Semua', 'Pohon Pelindung', 'TOGA', 'Penyerap Radiasi Indoor'], []);
+  const filterCategories = useMemo(() => ['Semua', ...FLORA_CATEGORY_OPTIONS], []);
 
   // Filter Plants with useMemo for high performance
   const filteredPlants = useMemo(() => {
@@ -169,8 +212,11 @@ export default function JelajahPohonView({
         pClass.toLowerCase().includes(query) ||
         pLoc.toLowerCase().includes(query);
 
+      const plantCatMeta = getCategoryMeta(plant.category);
       const matchesCategory = 
-        selectedCategory === 'Semua' || plant.category === selectedCategory;
+        selectedCategory === 'Semua' || 
+        plant.category === selectedCategory ||
+        plantCatMeta.label === selectedCategory;
 
       return matchesSearch && matchesCategory;
     });
@@ -261,7 +307,7 @@ export default function JelajahPohonView({
     setEditingPlant(plant);
     setEditName(plant.name || '');
     setEditScientific(plant.scientificName || plant.latin_name || '');
-    setEditCategory(plant.category || 'Pohon Pelindung');
+    setEditCategory(plant.category ? getCategoryMeta(plant.category).label : 'Pohon Pelindung & Peneduh');
     setEditClass(plant.responsibleClass || plant.adopted_by || myClass || 'Kelas 8A');
     setEditLocation(plant.location || 'Halaman Depan');
     setEditAbsorption(String(plant.co2AbsorptionKgPerYear || plant.co2_absorption || '15'));
@@ -410,9 +456,17 @@ export default function JelajahPohonView({
     
     // Default eco-friendly description if empty
     const defaultDescriptions = {
+      'Pohon Pelindung & Peneduh': 'Pohon peneduh rindang penyejuk suhu mikro sekolah dengan kanopi daun lebat yang aktif menyerap karbon.',
       'Pohon Pelindung': 'Pohon peneduh rindang penyejuk suhu mikro sekolah dengan kanopi daun lebat yang aktif menyerap karbon.',
+      'Tanaman Bunga & Estetika': 'Tanaman berbunga indah yang mempercantik taman sekolah, memikat serangga penyerbuk, dan menstimulasi kreativitas.',
+      'Tanaman Hias & Daun': 'Tanaman hias berdaun unik yang menyegarkan sudut sekolah dan memperkaya estetika koridor pembelajaran.',
+      'TOGA (Tanaman Obat Keluarga)': 'Tanaman obat keluarga bernilai edukasi siswa, menjaga kebugaran warga sekolah dan bahan apotek hidup alami.',
       'TOGA': 'Tanaman obat keluarga bernilai edukasi siswa, menjaga kebugaran warga sekolah dan bahan apotek hidup alami.',
-      'Penyerap Radiasi Indoor': 'Tanaman pembersih udara yang efektif menyaring partikel polutan dan menghasilkan oksigen bersih.'
+      'Tanaman Buah & Produktif': 'Tanaman buah produktif yang mengajarkan ketahanan pangan mandiri serta memberi hasil panen segar bagi warga sekolah.',
+      'Sayuran & Hidroponik': 'Tanaman sayur segar budidaya hidroponik/organik untuk edukasi nutrisi sehat dan pertanian modern berkelanjutan.',
+      'Penyerap Polusi & Radiasi Indoor': 'Tanaman pembersih udara yang efektif menyaring partikel polutan dan menghasilkan oksigen bersih.',
+      'Penyerap Radiasi Indoor': 'Tanaman pembersih udara yang efektif menyaring partikel polutan dan menghasilkan oksigen bersih.',
+      'Tanaman Gantung & Merambat': 'Tanaman peneduh dinding dan kanopi yang menciptakan kanopi hijau vertikal serta meredam panas bangunan.'
     };
     const finalNotes = cleanNotes || defaultDescriptions[newCategory] || 'Koleksi flora Adiwiyata sekolah yang dirawat rutin untuk mendukung pelestarian lingkungan.';
     const finalPhoto = newPhoto || SAMPLE_PLANT_PHOTOS[0].url;
@@ -592,20 +646,24 @@ export default function JelajahPohonView({
         </div>
 
         {/* Category Pills */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
-          {categories.map(cat => (
-            <button
-              key={cat}
-              onClick={() => setSelectedCategory(cat)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
-                selectedCategory === cat
-                  ? 'bg-gradient-to-r from-[#2E7D32] to-[#388E3C] text-white shadow-xs'
-                  : 'bg-slate-100 hover:bg-[#E0F7FA] text-slate-600'
-              }`}
-            >
-              {cat === 'Pohon Pelindung' ? '🌳 Peneduh' : cat === 'TOGA' ? '🪴 TOGA' : cat === 'Penyerap Radiasi Indoor' ? '🍃 Penyerap Polusi' : '🌿 Semua'}
-            </button>
-          ))}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
+          {filterCategories.map(cat => {
+            const meta = getCategoryMeta(cat);
+            const pillLabel = cat === 'Semua' ? '🌿 Semua' : meta.shortLabel;
+            return (
+              <button
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+                  selectedCategory === cat
+                    ? 'bg-gradient-to-r from-[#2E7D32] to-[#388E3C] text-white shadow-xs'
+                    : 'bg-slate-100 hover:bg-[#E0F7FA] text-slate-600'
+                }`}
+              >
+                {pillLabel}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -638,11 +696,11 @@ export default function JelajahPohonView({
                   {/* Category Pill Tag */}
                   <div className="absolute top-3 left-3">
                     <span className="px-3 py-1 rounded-full bg-white/95 backdrop-blur-md text-xs font-black text-slate-800 shadow-sm border border-slate-200/60">
-                      {plant.category === 'Pohon Pelindung' ? '🌳 Peneduh' : plant.category === 'TOGA' ? '🪴 Apotek Hidup' : '🍃 Penyerap Polusi'}
+                      {getCategoryMeta(plant.category).badge}
                     </span>
                   </div>
 
-                  {/* Action Buttons: Sunting (Edit) & Hapus (Delete) */}
+                  {/* Action Buttons: Sunting (Edit) & Hapus (Delete) - Icon Only */}
                   {canManagePlant(plant) && (
                     <div 
                       className="absolute top-3 right-3 flex items-center gap-1.5 z-10"
@@ -654,11 +712,11 @@ export default function JelajahPohonView({
                           e.stopPropagation();
                           handleOpenEditModal(plant);
                         }}
-                        className="px-2.5 py-1 rounded-xl bg-white/95 hover:bg-emerald-50 text-emerald-800 border border-slate-200/80 shadow-md backdrop-blur-md text-[11px] font-black flex items-center gap-1 transition-all active:scale-95 cursor-pointer hover:border-emerald-300"
-                        title="Sunting Data Tanaman"
+                        className="w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm shadow-sm flex items-center justify-center transition-all hover:scale-105 active:scale-95 cursor-pointer text-teal-700 hover:bg-teal-50 border border-slate-200/50"
+                        title="Sunting Tanaman"
+                        aria-label="Sunting Tanaman"
                       >
-                        <Edit3 className="w-3.5 h-3.5 text-emerald-600" />
-                        <span>Sunting</span>
+                        <Pencil className="w-[15px] h-[15px]" />
                       </button>
                       <button
                         type="button"
@@ -666,11 +724,11 @@ export default function JelajahPohonView({
                           e.stopPropagation();
                           handleOpenDeleteModal(plant);
                         }}
-                        className="p-1.5 sm:px-2 sm:py-1 rounded-xl bg-white/95 hover:bg-red-50 text-red-600 border border-slate-200/80 shadow-md backdrop-blur-md text-[11px] font-black flex items-center gap-1 transition-all active:scale-95 cursor-pointer hover:border-red-300"
+                        className="w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm shadow-sm flex items-center justify-center transition-all hover:scale-105 active:scale-95 cursor-pointer text-red-500 hover:bg-red-50 border border-slate-200/50"
                         title="Hapus Tanaman"
+                        aria-label="Hapus Tanaman"
                       >
-                        <Trash2 className="w-3.5 h-3.5 text-red-500" />
-                        <span className="hidden sm:inline">Hapus</span>
+                        <Trash2 className="w-[15px] h-[15px]" />
                       </button>
                     </div>
                   )}
@@ -798,7 +856,7 @@ export default function JelajahPohonView({
               {/* Top Floating Badges */}
               <div className="absolute top-4 left-4 flex items-center gap-2 flex-wrap max-w-[80%]">
                 <span className="px-3 py-1 rounded-full bg-white/95 backdrop-blur-md text-xs font-black text-slate-800 shadow-sm border border-slate-200/60">
-                  {selectedPlantForDetail.category === 'Pohon Pelindung' ? '🌳 Pohon Pelindung' : selectedPlantForDetail.category === 'TOGA' ? '🪴 Apotek Hidup (TOGA)' : '🍃 Penyerap Polutan'}
+                  {getCategoryMeta(selectedPlantForDetail.category).label}
                 </span>
                 <span className="px-2.5 py-1 rounded-full bg-slate-900/80 backdrop-blur-md text-[11px] font-mono font-bold text-teal-300 border border-teal-400/30">
                   {selectedPlantForDetail.qrCodeId || `ECO-TREE-${selectedPlantForDetail.id}`}
@@ -1146,13 +1204,10 @@ export default function JelajahPohonView({
                     <CustomDropdown
                       value={newCategory}
                       onChange={setNewCategory}
-                      options={[
-                        'Pohon Pelindung',
-                        'TOGA',
-                        'Penyerap Radiasi Indoor'
-                      ]}
+                      options={FLORA_CATEGORY_OPTIONS}
                       placeholder="Pilih Kategori"
                       buttonClassName="py-2.5 text-xs font-semibold"
+                      menuClassName="max-h-56 overflow-y-auto"
                     />
                   </div>
 
@@ -1415,13 +1470,10 @@ export default function JelajahPohonView({
                     <CustomDropdown
                       value={editCategory}
                       onChange={setEditCategory}
-                      options={[
-                        'Pohon Pelindung',
-                        'TOGA',
-                        'Penyerap Radiasi Indoor'
-                      ]}
+                      options={FLORA_CATEGORY_OPTIONS}
                       placeholder="Pilih Kategori"
                       buttonClassName="py-2.5 text-xs font-semibold"
+                      menuClassName="max-h-56 overflow-y-auto"
                     />
                   </div>
 
